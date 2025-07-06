@@ -189,11 +189,13 @@ class GameServer{
   }
   resetGame(ws, game, hardReset) {
     const players = Object.keys(game.players);
-    players.forEach(card => {
-      game.players[card].cards = game.players[card].cards.filter(d => game.players[card].selected.map(s => s.text).indexOf(d.text) === -1);
-      game.white = [...game.players[card].selected, ...game.white];
-      game.players[card].selected = [];
-    })
+    const allSelectedCards = players.flatMap(playerId => {
+      const player = game.players[playerId];
+      const selected = player.selected || [];
+      player.selected = [];
+      return selected;
+    });
+    game.white.push(...allSelectedCards.filter(c => c));
     game.currentPreviewResponse = 0;
     game.showBlack = false;
     game.winner = null;

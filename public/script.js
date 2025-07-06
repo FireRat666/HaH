@@ -205,6 +205,8 @@ class HahGameSystem {
       const cardSelection = playerSection.querySelector("._cardSelection");
       const cardSelection0 = cardSelection.querySelector("._cardSelection0");
       const cardSelection1 = cardSelection.querySelector("._cardSelection1");
+      this.hide(cardSelection0);
+      this.hide(cardSelection1);
       this.hide(submit.parentElement);
       this.hide(reset.parentElement);
       if(!playerId.length) {
