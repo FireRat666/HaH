@@ -1,4 +1,4 @@
-const { WebSocket } = require('@encharm/cws');
+const { WebSocketServer } = require('ws');
 const express = require('express');
 const http = require('http');
 const winston = require('winston');
@@ -32,7 +32,7 @@ class GameServer{
     
     this.server = http.createServer( this.app );
     
-    this.wss = new WebSocket.Server({ noServer: true });
+    this.wss = new WebSocketServer({ noServer: true });
     
     this.server.on('upgrade', (request, socket, head) => {
       this.wss.handleUpgrade(request, socket, head, (ws) => {
@@ -40,9 +40,22 @@ class GameServer{
       }); 
     }); 
      
-    this.wss.startAutoPing(10000);
-    
+    // Replicate startAutoPing functionality from cws
+    this.pingInterval = setInterval(() => {
+      this.wss.clients.forEach(ws => {
+        // ws.isAlive is a custom property we'll use to track connection health
+        if (ws.isAlive === false) return ws.terminate();
+        ws.isAlive = false;
+        ws.ping(() => {}); // no-op, just sending a ping
+      });
+    }, 10000);
+
     this.wss.on('connection', (ws, req) => {
+      ws.isAlive = true;
+      ws.on('pong', () => {
+        ws.isAlive = true;
+      });
+
       //  ws.send({path: 'initial-state', data: this.room.data});
       ws.on('message', msg => {
         try{
@@ -82,6 +95,7 @@ class GameServer{
   }
   shutdown() {
     logger.info('Shutting down server...');
+    clearInterval(this.pingInterval);
     this.wss.close();
     this.server.close(() => logger.info('Server closed.'));
   }
