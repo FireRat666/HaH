@@ -48,7 +48,7 @@ class GameServer{
             this.parseMessage(msg, ws); 
           }
         }catch(e) {
-          console.log("parse error: ", e);
+          logger.error('Parse error:', e);
         } 
       });
       ws.on('close', (code, reason) => {
@@ -79,7 +79,7 @@ class GameServer{
       if(ws.u && game.players[ws.u.id]) {
         game.players[ws.u.id].connected = false;
         game.players[ws.u.id].disconnectTime = new Date().getTime();
-        console.log("Kicking in 2 mins...")
+        logger.info(`Player ${name} will be kicked in 45 seconds for inactivity.`);
         game.players[ws.u.id].kickTimeout = setTimeout(() =>{
           if(!game.players[ws.u.id] || !game.players[ws.u.id].connected) {
             logger.info(`${name} kicked for inactivity.`);
@@ -89,7 +89,7 @@ class GameServer{
         this.syncGame(game);
       } 
       if(ws.u && game.waitingRoom.map(d => d.id).indexOf(ws.u.id) > -1) { 
-        console.log(".. removed from waiting list.");
+        logger.info(`Player ${name} removed from waiting list.`);
         game.waitingRoom = game.waitingRoom.filter(d => d.id !== ws.u.id);
       }
     }); 
