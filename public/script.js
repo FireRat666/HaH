@@ -401,10 +401,10 @@ class HahGameSystem {
     this.currentPlayer  = game.currentPreviewResponse || 0;
     const gamePlayersWithoutCzar = players.filter(d => d !== game.czar).map(d => game.players[d]);
 
-    if (gamePlayersWithoutCzar.length > 1) {
+    if (gamePlayersWithoutCzar.length > 1 && game.isStarted && game.currentBlackCard) {
       // Create a deterministic seed for this round
       const playerIDs = players.filter(d => d !== game.czar).sort();
-      const seedString = game.czar + playerIDs.join('');
+      const seedString = game.czar + playerIDs.join('') + game.currentBlackCard.text;
       let seed = 0;
       for (let i = 0; i < seedString.length; i++) {
         seed += seedString.charCodeAt(i);
