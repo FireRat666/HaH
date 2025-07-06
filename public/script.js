@@ -587,7 +587,7 @@ class HahGameSystem {
     }
   }
   parseMessage(msg) {
-    const json = JSON.parse(event.data);
+    const json = JSON.parse(msg);
     switch(json.path) {
       case 'sync-game':
         this.syncGame(json.data);
@@ -789,4 +789,6 @@ class HahGameSystem {
 if(window.isBanter) {
   window.loadDoneCallback = () => window.banterLoaded = true;
 }
-window.gameSystem = new HahGameSystem();
+if (!window.gameSystem) {
+  window.gameSystem = new HahGameSystem();
+}
