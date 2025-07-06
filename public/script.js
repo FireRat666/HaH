@@ -263,15 +263,6 @@ class HahGameSystem {
             playerSection.resetCallback = this.debounce(() => this.resetChoice(submit, reset, playerSection, cardSelection0, cardSelection1));
             reset.addEventListener("click", playerSection.resetCallback);
           }
-          if(player.selected[0]) {
-            this.firstCardSelection = player.selected[0];
-            this.setText(cardSelection0.querySelector("a-text"), player.selected[0].text);
-          }
-          if(player.selected[1] && this.isTwoResponse) {
-            this.secondCardSelection = player.selected[1];
-            this.setText(cardSelection1.querySelector("a-text"), player.selected[1].text);
-          }
-
           // --- New, smarter hand update logic ---
           const cardElements = Array.from({ length: 12 }, (_, i) => playerSection.querySelector('._card' + i));
           const newCardData = player.cards || [];
