@@ -749,7 +749,7 @@ class HahGameSystem {
           <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 0 0" class="_submitCardSelection" gltf-model="${WEBSITE_URL}/Assets/ButtonS.glb"></a-entity>
           <a-plane position="0 0 0" scale="0.2 0.2 0.2" transparent="true" src="${WEBSITE_URL}/Assets/check.png" rotation="0 180 0"></a-plane> 
         </a-entity>
-        <a-entity class="_dumpHandContainer" scale="0.6 0.6 0.6" position="-0.45 1.4 -1.3" visible="false">
+        <a-entity class="_dumpHandContainer" scale="0.6 0.6 0.6" position="-0.45 1.2 -1.3" visible="false">
           <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 0 0" class="_dumpHandButton" gltf-model="${WEBSITE_URL}/Assets/ButtonS.glb"></a-entity>
           <a-plane position="0 0 0" scale="0.15 0.15 0.15" transparent="true" src="${WEBSITE_URL}/Assets/trash.png" rotation="0 180 0"></a-plane>
         </a-entity>
