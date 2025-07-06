@@ -700,16 +700,16 @@ class HahGameSystem {
     
     const czarSelectHtml = `
     <a-entity class="_cardSelection">
-      <a-plane visible="false" class="_cardSelection0" position="0.25 1.6 -1.3" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.glb" side="double" rotation="0 180 0">
+      <a-plane visible="false" class="_cardSelection0" position="0.25 1.6 -1.3" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 180 0">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
         </a-plane>  
-      <a-plane visible="false" class="_cardSelection1"  position="0.05 1.6 -1.3" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.glb" side="double" rotation="0 180 0" >
+      <a-plane visible="false" class="_cardSelection1"  position="0.05 1.6 -1.3" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 180 0" >
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
         </a-plane>  
     </a-entity>`;
     
     const czarCardHtml = `
-        <a-plane class="_cardCzar" sq-collider sq-interactable data-raycastable position="0 1.46 -1.4" scale="0.1 0.15 0.1" color="#000000" src="${WEBSITE_URL}/Assets/hero-texture.glb" side="double" rotation="0 180 0" visiable="false">
+        <a-plane class="_cardCzar" sq-collider sq-interactable data-raycastable position="0 1.46 -1.4" scale="0.1 0.15 0.1" color="#000000" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 180 0" visiable="false">
           <a-text baseline="top" value="-" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
         </a-plane>`;
     const resetHtml = `
@@ -726,41 +726,41 @@ class HahGameSystem {
        <!--  <a-plane class="_submitCardSelection" data-raycastable sq-boxcollider="size: 1 1 0.05" sq-interactable position="-0.4 1.5 -1.3" scale="0.1 0.1 0.1" transparent="true" src="${WEBSITE_URL}/Assets/check.png" rotation="0 180 0" visible="false"></a-plane> -->`;
     const cardsHtml = `
       <a-entity class="_cardRoot" position="0 1.4 -1.3" rotation="-30 180 0" visible="false">
-        <a-plane data-raycastable sq-collider sq-interactable class="_card0" position="0.265 -0.04 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.glb" side="double" rotation="0 0 -10">
+        <a-plane data-raycastable sq-collider sq-interactable class="_card0" position="0.265 -0.04 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 -10">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
         </a-plane>
-        <a-plane data-raycastable sq-collider sq-interactable class="_card1" position="0.16 -0.015 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.glb" side="double" rotation="0 0 -6">
+        <a-plane data-raycastable sq-collider sq-interactable class="_card1" position="0.16 -0.015 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 -6">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
         </a-plane>
-        <a-plane data-raycastable sq-collider sq-interactable class="_card2" position="0.055 0 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.glb" side="double" rotation="0 0 -3">
+        <a-plane data-raycastable sq-collider sq-interactable class="_card2" position="0.055 0 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 -3">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
         </a-plane>
-        <a-plane data-raycastable sq-collider sq-interactable class="_card3" position="-0.055 0 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.glb" side="double" rotation="0 0 3">
+        <a-plane data-raycastable sq-collider sq-interactable class="_card3" position="-0.055 0 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 3">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
         </a-plane>
-        <a-plane data-raycastable sq-collider sq-interactable class="_card4" position="-0.16 -0.015 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.glb" side="double" rotation="0 0 6">
+        <a-plane data-raycastable sq-collider sq-interactable class="_card4" position="-0.16 -0.015 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 6">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
         </a-plane>
-        <a-plane data-raycastable sq-collider sq-interactable class="_card5" position="-0.265 -0.04 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.glb" side="double" rotation="0 0 10">
+        <a-plane data-raycastable sq-collider sq-interactable class="_card5" position="-0.265 -0.04 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 10">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
         </a-plane>
         <a-entity position="0 -0.155 0">
-          <a-plane data-raycastable sq-collider sq-interactable class="_card6" position="0.265 -0.04 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.glb" side="double" rotation="0 0 -10">
+          <a-plane data-raycastable sq-collider sq-interactable class="_card6" position="0.265 -0.04 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 -10">
             <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
           </a-plane>
-          <a-plane data-raycastable sq-collider sq-interactable class="_card7" position="0.16 -0.015 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.glb" side="double" rotation="0 0 -6">
+          <a-plane data-raycastable sq-collider sq-interactable class="_card7" position="0.16 -0.015 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 -6">
             <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
           </a-plane>
-          <a-plane data-raycastable sq-collider sq-interactable class="_card8" position="0.055 0 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.glb" side="double" rotation="0 0 -3">
+          <a-plane data-raycastable sq-collider sq-interactable class="_card8" position="0.055 0 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 -3">
             <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
           </a-plane>
-          <a-plane data-raycastable sq-collider sq-interactable class="_card9" position="-0.055 0 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.glb" side="double" rotation="0 0 3">
+          <a-plane data-raycastable sq-collider sq-interactable class="_card9" position="-0.055 0 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 3">
             <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
           </a-plane>
-          <a-plane data-raycastable sq-collider sq-interactable class="_card10" position="-0.16 -0.015 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.glb" side="double" rotation="0 0 6">
+          <a-plane data-raycastable sq-collider sq-interactable class="_card10" position="-0.16 -0.015 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 6">
             <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
           </a-plane>
-          <a-plane data-raycastable sq-collider sq-interactable class="_card11" position="-0.265 -0.04 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.glb" side="double" rotation="0 0 10">
+          <a-plane data-raycastable sq-collider sq-interactable class="_card11" position="-0.265 -0.04 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 10">
             <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
           </a-plane>
         </a-entity>
@@ -800,10 +800,10 @@ class HahGameSystem {
           <a-entity sq-billboard look-at="[camera]">
             <a-entity gltf-model="${WEBSITE_URL}/Assets/card%20(1).glb" scale="12.8 12.8 12.8" position="0 0 0" rotation="-90 0 0"></a-entity>
             <a-text class="_cardCzar0" baseline="top" value="-" scale="0.3 0.3 0.3" rotation="0 0 0" position="0.31 0 0.021"></a-text>
-            <a-plane position="0 0 0" scale="0.75 1.125 0.75" color="#afafaf" rotation="0 0 0" src="${WEBSITE_URL}/Assets/hero-texture.glb" side="double" visible="false">
+            <a-plane position="0 0 0" scale="0.75 1.125 0.75" color="#afafaf" rotation="0 0 0" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" visible="false">
               <a-text class="_cardCzar1" color="#000" baseline="top" value="-" scale="0.375 0.25 0.375" position="-0.4 0.4 0.01"></a-text>
             </a-plane>
-            <a-plane position="0.8 0 0" scale="0.75 1.125 0.75" color="#afafaf" rotation="0 0 0" src="${WEBSITE_URL}/Assets/hero-texture.glb" side="double" visible="false">
+            <a-plane position="0.8 0 0" scale="0.75 1.125 0.75" color="#afafaf" rotation="0 0 0" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" visible="false">
               <a-text class="_cardCzar2" color="#000" baseline="top" value="-" scale="0.375 0.25 0.375" position="-0.4 0.4 0.01"></a-text>
             </a-plane>
           </a-entity>
