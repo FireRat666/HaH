@@ -490,6 +490,8 @@ class HahGameSystem {
 
           const onCleanup = () => {
             this.show(this.submitWinner.parentElement);
+            this.show(_prevPlayerResponse.parentElement);
+            this.show(_nextPlayerResponse.parentElement);
             this.showHideNextPrev(_nextPlayerResponse, _prevPlayerResponse, gamePlayersWithoutCzar.length - 1);
           };
 
