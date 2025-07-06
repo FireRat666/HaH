@@ -1,4 +1,8 @@
 const hahCurrentScript = Array.from(document.getElementsByTagName('script')).slice(-1)[0];
+
+// --- Configuration ---
+// If you are hosting your own server, change this URL to point to it.
+const WEBSOCKET_URL = 'wss://hah.firer.at';
 class HahGameSystem {
   constructor(){
     this.init();
@@ -48,10 +52,7 @@ class HahGameSystem {
   }
   setupWebsocket(){
     return new Promise(resolve => {
-      // Dynamically set the WebSocket protocol and host based on the page's URL
-      const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const wsHost = window.location.host;
-      this.ws = new WebSocket(`${wsProtocol}//${wsHost}`);
+      this.ws = new WebSocket(WEBSOCKET_URL);
       this.ws.onopen = async (event) => {
         const instance = this.params.instance;
         const user = window.user;
