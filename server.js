@@ -73,8 +73,8 @@ class GameServer{
     this.app.use(express.static(path.join(__dirname, 'public')));
 
     const port = process.env.PORT || 3000;
-    this.server.listen( port, function listening(){
-      logger.info(`Server started on port ${port}`);
+    this.server.listen( port, '0.0.0.0', () => {
+      logger.info(`Server started on port ${port}, listening on 0.0.0.0`);
     });
     
     process.on('SIGINT', () => this.shutdown());
