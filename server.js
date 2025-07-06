@@ -146,6 +146,7 @@ class GameServer{
     if(!data.user) return;
     ws.i = data.instance || "holy-shit";
     ws.deckName = data.deck || 'main';
+    ws.debug = data.debug === true;
     ws.u = data.user;
     const game = await this.getOrCreateGame(ws);
     game.sockets[ws.u.id] = ws;
@@ -244,14 +245,42 @@ class GameServer{
   }  
   async chooseCards(json, ws) {
     const game = await this.getOrCreateGame(ws);
+    const player = game.players[ws.u.id];
+    if (!player) return; // Player not in game, ignore.
+
     const numResponses = game.currentBlackCard.numResponses || 1;
-    json.data = json.data.filter(d => d);
-    if(json.data.length === numResponses) {
-      game.players[ws.u.id].selected = json.data;
+    // Expecting an array of card objects, each with a unique _id
+    const submittedCards = (json.data || []).filter(d => d && d._id);
+
+    if (submittedCards.length !== numResponses) {
+      this.send(ws, "error", "Incorrect number of cards picked!");
+      return;
+    }
+
+    const submittedCardIds = submittedCards.map(c => c._id);
+    const playerCardIds = player.cards.map(c => c._id);
+
+    // Verify the player actually has these cards in their hand
+    const hasAllCards = submittedCardIds.every(id => playerCardIds.includes(id));
+
+    if (hasAllCards) {
+      // Move cards from hand to selected
+      player.selected = submittedCards;
+      player.cards = player.cards.filter(card => !submittedCardIds.includes(card._id));
+
+      // Replenish player's hand from the deck
+      for (let i = 0; i < numResponses; i++) {
+        if (game.white.length > 0) {
+          player.cards.push(game.white.pop());
+        }
+      }
+
       this.playSound(game, "card_flick.ogg");
       this.syncGame(game);
-    }else{
-      this.send(ws, "error", "Not enough cards picked!");
+    } else {
+      this.send(ws, "error", "Invalid card submission.");
+      // Re-sync the client to correct their state if it's out of sync.
+      this.syncGame(game, ws);
     }
   }
   async startGame(ws) {
@@ -336,30 +365,41 @@ class GameServer{
   async getDeck(deckNameOrUrl) {
     const deckIdentifier = deckNameOrUrl || 'main';
     logger.info(`Attempting to load deck: ${deckIdentifier}`);
-
+    let cardIdCounter = 0;
+    const processDeck = (deck) => {
+      if (deck && Array.isArray(deck.black) && Array.isArray(deck.white)) {
+        // Ensure cards are objects and assign a unique ID to each one.
+        deck.black = deck.black.map(card => ({ ...(typeof card === 'string' ? { text: card } : card), _id: `b_${cardIdCounter++}` }));
+        deck.white = deck.white.map(card => ({ ...(typeof card === 'string' ? { text: card } : card), _id: `w_${cardIdCounter++}` }));
+        return deck;
+      }
+      return null;
+    };
+ 
     try {
       let deckData;
       if (deckIdentifier.startsWith('http')) {
         const response = await axios.get(deckIdentifier);
         deckData = response.data;
       } else {
-        // Sanitize the name to prevent path traversal attacks
         const safeDeckName = path.basename(deckIdentifier);
         const deckPath = path.join(__dirname, 'decks', `${safeDeckName}.json`);
         const fileContent = await fs.readFile(deckPath, 'utf8');
         deckData = JSON.parse(fileContent);
       }
-
-      if (deckData && Array.isArray(deckData.black) && Array.isArray(deckData.white)) {
-        logger.info(`Successfully loaded deck: ${deckIdentifier}`);
-        return deckData;
+ 
+      const processedDeck = processDeck(deckData);
+      if (processedDeck) {
+        logger.info(`Successfully loaded and processed deck: ${deckIdentifier}`);
+        return processedDeck;
       }
       throw new Error("Invalid deck format.");
     } catch (error) {
       logger.warn(`Failed to load deck "${deckIdentifier}": ${error.message}. Falling back to the main deck.`);
       const fallbackPath = path.join(__dirname, 'decks', 'main.json');
       const fileContent = await fs.readFile(fallbackPath, 'utf8');
-      return JSON.parse(fileContent);
+      const fallbackDeckData = JSON.parse(fileContent);
+      return processDeck(fallbackDeckData);
     }
   }
   async getOrCreateGame(ws) {
@@ -378,6 +418,7 @@ class GameServer{
         white: deck.white.slice().sort(() => Math.random() - 0.5),
         isStarted: false,
         winner: null,
+        debug: ws.debug || false,
         sockets: {}
       }
     }
@@ -395,24 +436,38 @@ class GameServer{
      socket.send(JSON.stringify({path, data}));
   }
   syncGame(game, ws) {
-    const {players, waitingRoom, czar, isStarted, currentBlackCard, showBlack, currentPreviewResponse, winner} = game;
-    
+    const { players, waitingRoom, czar, isStarted, currentBlackCard, showBlack, currentPreviewResponse, winner, debug } = game;
     const playerIds = Object.keys(players);
-    
-    const _players = playerIds.map(d => {
-      const {_id, trophies, cards, selected, name, position, connected, disconnectTime} = players[d];
-      return {_id, trophies, cards, selected, name, position, connected, disconnectTime};
-    }).reduce((a,b) => {
-      a[b._id] = b;
-      return a;
-    }, {});
-    
     const playerCount = playerIds.length;
-    if(ws) {
-      this.send(ws, "sync-game", {players: _players, playerCount, waitingRoom, czar, currentBlackCard, isStarted, showBlack, currentPreviewResponse, winner});
-    }else{
-      Object.keys(game.sockets).forEach(socket => {
-        this.send(game.sockets[socket], "sync-game", {players: _players, playerCount, waitingRoom, czar, currentBlackCard, isStarted, showBlack, currentPreviewResponse, winner});
+
+    const createPayloadForPlayer = (targetPlayerId) => {
+      const _players = {};
+      playerIds.forEach(id => {
+        const player = players[id];
+        const { _id, trophies, selected, name, position, connected, disconnectTime } = player;
+        
+        const publicPlayerView = { _id, trophies, selected, name, position, connected, disconnectTime };
+
+        // Reveal cards if it's the owner OR if debug mode is on.
+        if (id === targetPlayerId || debug) {
+          publicPlayerView.cards = player.cards;
+        } else {
+          publicPlayerView.cards = []; 
+        }
+        _players[id] = publicPlayerView;
+      });
+
+      return { players: _players, playerCount, waitingRoom, czar, currentBlackCard, isStarted, showBlack, currentPreviewResponse, winner };
+    };
+
+    if (ws) {
+      this.send(ws, "sync-game", createPayloadForPlayer(ws.u.id));
+    } else {
+      Object.keys(game.sockets).forEach(socketId => {
+        const targetSocket = game.sockets[socketId];
+        if (targetSocket && targetSocket.u) {
+          this.send(targetSocket, "sync-game", createPayloadForPlayer(targetSocket.u.id));
+        }
       });
     }
   }

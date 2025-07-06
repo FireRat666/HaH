@@ -59,7 +59,8 @@ class HahGameSystem {
         const instance = this.params.instance;
         const user = window.user;
         const deck = this.params.deck;
-        this.send("init", {instance, user, deck});
+        const debug = this.params.debug === 'true';
+        this.send("init", {instance, user, deck, debug});
         console.log("Connected to game server.")
         resolve();
       };
