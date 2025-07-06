@@ -4,6 +4,7 @@ const http = require('http');
 const winston = require('winston');
 const path = require('path');
 const axios = require('axios');
+const cors = require('cors');
 const fs = require('fs').promises;
 
 const logger = winston.createLogger({
@@ -57,6 +58,18 @@ class GameServer{
       });
     });
     
+    // Enable CORS for all routes. This will allow your script to be loaded from different domains.
+    this.app.use(cors());
+
+    /*
+    // For a more secure production environment, you might want to restrict this
+    // to only the domains you trust.
+    const corsOptions = {
+      origin: ['https://example.com', 'https://ex.ample.com']
+    };
+    this.app.use(cors(corsOptions));
+    */
+
     this.app.use(express.static(path.join(__dirname, 'public')));
 
     const port = process.env.PORT || 3000;
