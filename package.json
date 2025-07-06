@@ -1,35 +1,14 @@
 {
-  "name": "holograms-against-humanity",
-  "version": "1.0.0",
-  "description": "A game for terrible Altspacers.",
-  "main": "server/app.js",
+  "name": "server",
+  "version": "0.0.1",
+  "description": "-",
+  "main": "server.js",
+  "repository": "-",
   "scripts": {
-    "build": "node ./build",
-    "start": "node ./server/app",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/AltspaceVR/HaH.git"
-  },
-  "author": "",
-  "license": "CC-BY-NC-SA-4.0",
-  "bugs": {
-    "url": "https://github.com/AltspaceVR/HaH/issues"
-  },
-  "homepage": "https://github.com/AltspaceVR/HaH#readme",
   "dependencies": {
-    "body-parser": "^1.15.1",
-    "compression": "^1.6.2",
-    "express": "^4.13.4",
-    "morgan": "^1.9.1",
-    "pug": "^2.0.3",
-    "request": "^2.88.0",
-    "socket.io": "^1.4.5"
-  },
-  "devDependencies": {
-    "csv-parse": "^1.1.7",
-    "simple-git": "^1.32.1",
-    "uglify-js": "^2.7.3"
+    "express": "^4.18.2",
+    "@encharm/cws": "^4.3.0"
   }
 }

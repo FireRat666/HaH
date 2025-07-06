@@ -1,0 +1,19 @@
+<html>
+  <head>
+<!--     <meta name="sidequest-space-verification" content="537afaf0-a61a-4e82-aa0d-3a98e9594465">
+    <meta property="og:title" content="Ready Player Tag">
+    <meta property="og:description" content="This advanced example shows the complete game mecahnic behind a simple tag game similar to Gorilla Tag.">
+    <meta property="og:image" content="https://user-images.githubusercontent.com/6830845/206167575-b12af3dd-45f9-4b7e-ae1f-50c05626f064.png">   -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script> 
+  </head>
+  <body>
+    <a-scene cursor="rayOrigin: mouse;" raycaster="objects: [data-raycastable];" sq-hidedefaulttextures>
+      <a-entity position="0 1.8 0" camera look-controls wasd-controls="acceleration: 20"></a-entity>
+      <a-box color="olive" scale="30 0.1 30" sq-collider></a-box>
+      <a-box color="grey" scale="100 100 0.1" sq-collider position="0 0 -15"></a-box>
+      <script src="https://firehah.glitch.me/script.js" 
+              rotation="0 180 0" position="0 0 -2"></script> 
+    </a-scene>
+  </body>
+</html>
