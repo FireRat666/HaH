@@ -749,9 +749,9 @@ class HahGameSystem {
           <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 0 0" class="_submitCardSelection" gltf-model="${WEBSITE_URL}/Assets/ButtonS.glb"></a-entity>
           <a-plane position="0 0 0" scale="0.2 0.2 0.2" transparent="true" src="${WEBSITE_URL}/Assets/check.png" rotation="0 180 0"></a-plane> 
         </a-entity>
-        <a-entity class="_dumpHandContainer" scale="0.6 0.6 0.6" position="0 1.5 -1.3" visible="false">
+        <a-entity class="_dumpHandContainer" scale="0.6 0.6 0.6" position="-0.45 1.4 -1.3" visible="false">
           <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 0 0" class="_dumpHandButton" gltf-model="${WEBSITE_URL}/Assets/ButtonS.glb"></a-entity>
-          <a-plane position="0 0 0" scale="0.2 0.2 0.2" transparent="true" src="${WEBSITE_URL}/Assets/trash.png" rotation="0 180 0"></a-plane>
+          <a-plane position="0 0 0" scale="0.15 0.15 0.15" transparent="true" src="${WEBSITE_URL}/Assets/trash.png" rotation="0 180 0"></a-plane>
         </a-entity>
         
        <!-- <a-plane class="_resetCardSelection" data-raycastable sq-boxcollider="size: 1 1 0.05" sq-interactable position="0.4 1.5 -1.3" scale="0.1 0.1 0.1" transparent="true" src="${WEBSITE_URL}/Assets/cross.png" rotation="0 180 0" visible="false"></a-plane> -->  
@@ -817,8 +817,8 @@ class HahGameSystem {
       <a-entity sq-nonconvexcollider="recursive: true" sq-interactable="recursive: true" gltf-model="${WEBSITE_URL}/Assets/ha_h__table_main.glb" scale="0.01 0.01 0.01"></a-entity>
         ${playerSection}
         <a-entity position="0 1.3 0.1" sq-billboard look-at="[camera]" scale="0 0 0" class="_areYouSure">
-          <a-plane scale="0.5 0.3 1" color="#000" rotation="0 0 0"></a-plane>
-          <a-text baseline="center" align="center" value="Are you sure?" scale="0.25 0.25 1" position="0 0.07 0.01"></a-text>
+          <a-plane scale="0.5 0.3 1" color="#000" rotation="0 0 0" material="shader: flat;"></a-plane>
+          <a-text baseline="center" align="center" value="Are you sure?" scale="0.25 0.25 1" position="0 0.07 0.01" width="1.8"></a-text>
           <a-entity position="-0.1 -0.05 0.1" scale="0.6 0.6 0.6">
             <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 180 0" class="_cancel" gltf-model="${WEBSITE_URL}/Assets/ButtonS.glb"></a-entity>
             <a-plane position="0 0 0" scale="0.2 0.2 0.2" transparent="true" src="${WEBSITE_URL}/Assets/cross.png" rotation="0 0 0"></a-plane> 
