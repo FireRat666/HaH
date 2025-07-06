@@ -400,6 +400,19 @@ class HahGameSystem {
   czarPreviewAndSelect(players, game) {
     this.currentPlayer  = game.currentPreviewResponse || 0;
     const gamePlayersWithoutCzar = players.filter(d => d !== game.czar).map(d => game.players[d]);
+
+    if (gamePlayersWithoutCzar.length > 1) {
+      // Create a deterministic seed for this round
+      const playerIDs = players.filter(d => d !== game.czar).sort();
+      const seedString = game.czar + playerIDs.join('');
+      let seed = 0;
+      for (let i = 0; i < seedString.length; i++) {
+        seed += seedString.charCodeAt(i);
+      }
+      // Shuffle the players so the czar doesn't know who is who by order
+      this.seededShuffle(gamePlayersWithoutCzar, seed);
+    }
+
     let someResponsesMissing = false;
     gamePlayersWithoutCzar.forEach(d => {
       if(d.selected < 2 && this.isTwoResponse) {
@@ -507,6 +520,23 @@ class HahGameSystem {
     }else{
         this.hide(this.gameCard);
     }
+  }
+  seededShuffle(array, seed) {
+    let currentIndex = array.length, randomIndex;
+    const random = () => {
+      const x = Math.sin(seed++) * 10000;
+      return x - Math.floor(x);
+    };
+
+    while (currentIndex !== 0) {
+      randomIndex = Math.floor(random() * currentIndex);
+      currentIndex--;
+
+      [array[currentIndex], array[randomIndex]] = [
+        array[randomIndex], array[currentIndex]];
+    }
+
+    return array;
   }
   showHideNextPrev(next, prev, total) {
     if(this.currentPlayer <= 0) {
