@@ -165,6 +165,13 @@ class GameServer{
   async removePlayer(ws) {
     const game = await this.getOrCreateGame(ws);
     if(game.players[ws.u.id]) {
+      const player = game.players[ws.u.id];
+      if (player.cards) {
+        game.white.push(...player.cards.filter(c => c));
+      }
+      if (player.selected) {
+        game.white.push(...player.selected.filter(c => c));
+      }
       const wasCzar = ws.u.id === game.czar;
       delete game.players[ws.u.id];
       if(Object.keys(game.players).length < 3 || wasCzar) {
@@ -271,13 +278,10 @@ class GameServer{
     }
     players.forEach(d => {
       const player = game.players[d];
-      if(player.cards.length < 12) {
-        for(let i = player.cards.length; i < 12; i++ ) {
-          const card = game.white.pop();
-          player.cards.push(game.white.pop(card));
-        }
+      player.cards = player.cards.filter(c => c);
+      while (player.cards.length < 12 && game.white.length > 0) {
+        player.cards.push(game.white.pop());
       }
-      player.cards.length = 12;
     }); 
     game.currentBlackCard = game.black.pop(); 
     game.isStarted = true;
