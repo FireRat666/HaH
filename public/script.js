@@ -317,7 +317,7 @@ class HahGameSystem {
               dumpHandButton.clickCallback = this.debounce(() => {
                 this.confirm(
                   () => { this.send('dump-hand'); },
-                  "Discard hand for a new one next round? This can only be done once per round."
+                  "Discard hand?"
                 );
               });
               dumpHandButton.addEventListener('click', dumpHandButton.clickCallback);
