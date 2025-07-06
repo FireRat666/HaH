@@ -3,7 +3,8 @@ const express = require('express');
 const http = require('http');
 const winston = require('winston');
 const path = require('path');
-const deck = require("./deck");
+const axios = require('axios');
+const fs = require('fs').promises;
 
 const logger = winston.createLogger({
   level: 'info',
@@ -94,74 +95,76 @@ class GameServer{
       }
     }); 
   } 
-  parseMessage(msg, ws) {
+  async parseMessage(msg, ws) {
     let json = JSON.parse(msg);
     switch(json.path) {
       case "init":
-        if(json.data.user) {
-          ws.i = json.data.instance || "holy-shit";
-          ws.u = json.data.user;
-          const game = this.getOrCreateGame(ws);
-          game.sockets[ws.u.id] = ws;
-          if(game.players[ws.u.id]) {
-            ws.player = game.players[ws.u.id];
-            const name = ws.u ? ws.u.name : 'Unknown';
-            game.players[ws.u.id].connected = true;
-            game.players[ws.u.id].disconnectTime = 0;
-            if(game.players[ws.u.id].kickTimeout) {
-              logger.info(`${name} returned within 2 mins, not kicked.`);
-              clearTimeout(game.players[ws.u.id].kickTimeout);
-              game.players[ws.u.id].kickTimeout = null;
-            }
-          }
-          this.syncGame(game);
-          logger.info(`${ws.u ? ws.u.name : 'Unknown'} connected.`);
-        }
+        await this.handleInit(json.data, ws);
         break;
       case "join-game":
-        this.joinGame(this.getOrCreateGame(ws), json, ws);
+        await this.joinGame(json, ws);
         break;
       case "start-game":
-        this.startGame(ws);
+        await this.startGame(ws);
         break;
       case "leave-game":
-        this.leaveGame(ws);
+        await this.leaveGame(ws);
         break;
       case "show-black":
-        this.showBlack(ws);
+        await this.showBlack(ws);
         break; 
       case "preview-response":
-        this.previewResponse(json, ws);
+        await this.previewResponse(json, ws);
         break; 
       case "choose-cards":
-        this.chooseCards(json, ws);
+        await this.chooseCards(json, ws);
         break;
       case "choose-winner": 
-        this.chooseWinner(json, ws);
+        await this.chooseWinner(json, ws);
         break;
       case "reset-game": 
-        const game = this.getOrCreateGame(ws);
+        const game = await this.getOrCreateGame(ws);
         this.resetGame(ws, game, true);
         this.syncGame(game);
         break;
     } 
   }
-  removePlayer(ws, player) {
-    const game = this.getOrCreateGame(ws);
+  async handleInit(data, ws) {
+    if(!data.user) return;
+    ws.i = data.instance || "holy-shit";
+    ws.deckName = data.deck || 'main';
+    ws.u = data.user;
+    const game = await this.getOrCreateGame(ws);
+    game.sockets[ws.u.id] = ws;
+    if(game.players[ws.u.id]) {
+      ws.player = game.players[ws.u.id];
+      game.players[ws.u.id].connected = true;
+      game.players[ws.u.id].disconnectTime = 0;
+      if(game.players[ws.u.id].kickTimeout) {
+        logger.info(`${ws.u.name} reconnected, cancelling kick timer.`);
+        clearTimeout(game.players[ws.u.id].kickTimeout);
+        game.players[ws.u.id].kickTimeout = null;
+      }
+    }
+    this.syncGame(game);
+    logger.info(`${ws.u.name} connected.`);
+  }
+  async removePlayer(ws) {
+    const game = await this.getOrCreateGame(ws);
     if(game.players[ws.u.id]) {
       const wasCzar = ws.u.id === game.czar;
       delete game.players[ws.u.id];
       if(Object.keys(game.players).length < 3 || wasCzar) {
         this.resetGame(ws, game);
-        this.startGame(ws);
+        await this.startGame(ws);
       }else{
         this.syncGame(game);
       }
     }
   }
-  leaveGame(ws) {
+  async leaveGame(ws) {
     if(ws.player) {
-      this.removePlayer(ws, ws.player);
+      await this.removePlayer(ws);
     }
   }
   resetGame(ws, game, hardReset) {
@@ -179,8 +182,8 @@ class GameServer{
       game.czar = ""
       game.players = {};
       game.waitingRoom = [];
-      game.black = deck.black.slice().sort(() => Math.random() - 0.5);
-      game.white = deck.white.slice().sort(() => Math.random() - 0.5);
+      game.black = game.originalDeck.black.slice().sort(() => Math.random() - 0.5);
+      game.white = game.originalDeck.white.slice().sort(() => Math.random() - 0.5);
     }else{
       const currentCzarIndex = players.indexOf(game.czar);
       let nextCzarIndex = currentCzarIndex+1;
@@ -192,8 +195,8 @@ class GameServer{
       game.czar = players[nextCzarIndex];
     }
   }
-  showBlack(ws) {
-    const game = this.getOrCreateGame(ws);
+  async showBlack(ws) {
+    const game = await this.getOrCreateGame(ws);
     if(ws.u.id === game.czar) {
       game.showBlack = true;
       this.syncGame(game);
@@ -201,24 +204,24 @@ class GameServer{
       this.send(ws, "error", "Only the czar can show the black card.");
     } 
   }
-  chooseWinner(json, ws) {
-    const game = this.getOrCreateGame(ws);
+  async chooseWinner(json, ws) {
+    const game = await this.getOrCreateGame(ws);
     if(ws.u.id === game.czar) {
       game.players[json.data].trophies++;
       const {_id, trophies, cards, selected, name, position, connected, disconnectTime} = game.players[json.data];
       game.winner = {_id, trophies, cards, selected, name, position, connected, disconnectTime};
       this.syncGame(game);
       this.playSound(game, "fanfare%20with%20pop.ogg");
-      setTimeout(() => {
+      setTimeout(async () => {
         this.resetGame(ws, game);
-        this.startGame(ws);
+        await this.startGame(ws);
       }, 5000);
     }else{
       this.send(ws, "error", "Only the czar can choose a winner.");
     } 
   }  
-  chooseCards(json, ws) {
-    const game = this.getOrCreateGame(ws);
+  async chooseCards(json, ws) {
+    const game = await this.getOrCreateGame(ws);
     const numResponses = game.currentBlackCard.numResponses || 1;
     json.data = json.data.filter(d => d);
     if(json.data.length === numResponses) {
@@ -229,8 +232,8 @@ class GameServer{
       this.send(ws, "error", "Not enough cards picked!");
     }
   }
-  startGame(ws) {
-    const game = this.getOrCreateGame(ws);
+  async startGame(ws) {
+    const game = await this.getOrCreateGame(ws);
     game.waitingRoom.forEach(d => {
       game.sockets[d.id].player = game.players[d.id] = {
         _id: d.id,
@@ -268,8 +271,8 @@ class GameServer{
     this.playSound(game, "gameStart.ogg");
     this.syncGame(game); 
   }
-  previewResponse(json, ws) {
-    const game = this.getOrCreateGame(ws);
+  async previewResponse(json, ws) {
+    const game = await this.getOrCreateGame(ws);
     if(ws.u.id === game.czar) {
       game.currentPreviewResponse = json.data;
       this.playSound(game, "card_flick.ogg");
@@ -278,7 +281,8 @@ class GameServer{
       this.send(ws, "error", "Only the czar can preview responses.");
     }
   } 
-  joinGame(game, json, ws) {
+  async joinGame(json, ws) {
+    const game = await this.getOrCreateGame(ws);
     if(Object.keys(game.players).length + game.waitingRoom.length > 9) {
       this.send(ws, "error", "This game is full, please try again later!");
       return;
@@ -310,9 +314,39 @@ class GameServer{
       this.send(game.sockets[socket], "play-sound", sound);
     });
   }
-  getOrCreateGame(ws) {
+  async getDeck(deckNameOrUrl) {
+    const deckIdentifier = deckNameOrUrl || 'main';
+    logger.info(`Attempting to load deck: ${deckIdentifier}`);
+
+    try {
+      let deckData;
+      if (deckIdentifier.startsWith('http')) {
+        const response = await axios.get(deckIdentifier);
+        deckData = response.data;
+      } else {
+        // Sanitize the name to prevent path traversal attacks
+        const safeDeckName = path.basename(deckIdentifier);
+        const deckPath = path.join(__dirname, 'decks', `${safeDeckName}.json`);
+        const fileContent = await fs.readFile(deckPath, 'utf8');
+        deckData = JSON.parse(fileContent);
+      }
+
+      if (deckData && Array.isArray(deckData.black) && Array.isArray(deckData.white)) {
+        logger.info(`Successfully loaded deck: ${deckIdentifier}`);
+        return deckData;
+      }
+      throw new Error("Invalid deck format.");
+    } catch (error) {
+      logger.warn(`Failed to load deck "${deckIdentifier}": ${error.message}. Falling back to the main deck.`);
+      const fallbackPath = path.join(__dirname, 'decks', 'main.json');
+      const fileContent = await fs.readFile(fallbackPath, 'utf8');
+      return JSON.parse(fileContent);
+    }
+  }
+  async getOrCreateGame(ws) {
     let game = this.games[ws.i];
     if(!game) {
+      const deck = await this.getDeck(ws.deckName);
       game = this.games[ws.i] = {
         players: {},
         waitingRoom: [],
@@ -320,6 +354,7 @@ class GameServer{
         currentBlackCard: null,
         currentPreviewResponse: 0,
         showBlack: false,
+        originalDeck: deck,
         black: deck.black.slice().sort(() => Math.random() - 0.5),
         white: deck.white.slice().sort(() => Math.random() - 0.5),
         isStarted: false,

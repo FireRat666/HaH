@@ -34,6 +34,7 @@ class HahGameSystem {
     this.setOrDefault("rotation", "0 0 0");
     this.setOrDefault("uid", null);
     this.setOrDefault("instance", "demo-game");
+    this.setOrDefault("deck", "main");
     this.setOrDefault("debug", "false");
     this.setOrDefault("one-for-each-instance", "false");
     if(this.params["one-for-each-instance"] === "true" && window.user && window.user.instance) {
@@ -54,7 +55,8 @@ class HahGameSystem {
       this.ws.onopen = async (event) => {
         const instance = this.params.instance;
         const user = window.user;
-        this.send("init", {instance, user});
+        const deck = this.params.deck;
+        this.send("init", {instance, user, deck});
         console.log("Connected to game server.")
         resolve();
       };
