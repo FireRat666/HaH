@@ -268,13 +268,6 @@ class GameServer{
       player.selected = submittedCards;
       player.cards = player.cards.filter(card => !submittedCardIds.includes(card._id));
 
-      // Replenish player's hand from the deck
-      for (let i = 0; i < numResponses; i++) {
-        if (game.white.length > 0) {
-          player.cards.push(game.white.pop());
-        }
-      }
-
       this.playSound(game, "card_flick.ogg");
       this.syncGame(game);
     } else {

@@ -170,8 +170,18 @@ class HahGameSystem {
   }
   chooseCards(submit, reset, playerSection, cardSelection0, cardSelection1) {
     if((this.firstCardSelection && this.isOneResponse) || (this.isTwoResponse && this.firstCardSelection && this.secondCardSelection)) {
+      // The card elements are already hidden from the hand by `selectIndividualCard`.
       this.send("choose-cards", [this.firstCardSelection.card, this.secondCardSelection ? this.secondCardSelection.card : null]);
-      this.resetChoice(submit, reset, playerSection, cardSelection0, cardSelection1);
+      
+      // Optimistically clear the selection area and hide controls for instant feedback.
+      this.setText(cardSelection0.querySelector("a-text"), "-");
+      this.setText(cardSelection1.querySelector("a-text"), "-");
+      this.hide(submit.parentElement);
+      this.hide(reset.parentElement);
+      this.hide(cardSelection0);
+      this.hide(cardSelection1);
+      this.firstCardSelection = null;
+      this.secondCardSelection = null;
       this.hasSubmit = true;
     }
   }
