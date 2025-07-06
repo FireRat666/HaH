@@ -596,7 +596,7 @@ class HahGameSystem {
     }
   }
   playSound(name){
-     var audio = new Audio('https://firer.at/files/hah/' + name);
+     var audio = new Audio('Assets/' + name);
      audio.volume = 0.3;
      audio.play(); 
   }
@@ -613,75 +613,75 @@ class HahGameSystem {
   }
   getTableHTML() {
     this.models = {
-      playerSlice:"https://firer.at/files/hah/ha_h__player_slice.glb",
-      playerSliceActive: "https://firer.at/files/hah/ha_h__player_slice%20(1).glb",
-      namePlate: "https://firer.at/files/hah/ha_h__name_plate.glb",
-      trophy: "https://firer.at/files/hah/ha_h__trophy.glb"
+      playerSlice:"Assets/ha_h__player_slice.glb",
+      playerSliceActive: "Assets/ha_h__player_slice%20(1).glb",
+      namePlate: "Assets/ha_h__name_plate.glb",
+      trophy: "Assets/ha_h__trophy.glb"
     }
     
     const czarSelectHtml = `
     <a-entity class="_cardSelection">
-      <a-plane visible="false" class="_cardSelection0" position="0.25 1.6 -1.3" scale="0.1 0.15 0.1" color="#afafaf" src="https://firer.at/files/hah/hero-texture.png" side="double" rotation="0 180 0">
+      <a-plane visible="false" class="_cardSelection0" position="0.25 1.6 -1.3" scale="0.1 0.15 0.1" color="#afafaf" src="Assets/hero-texture.png" side="double" rotation="0 180 0">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
         </a-plane>  
-      <a-plane visible="false" class="_cardSelection1"  position="0.05 1.6 -1.3" scale="0.1 0.15 0.1" color="#afafaf" src="https://firer.at/files/hah/hero-texture.png" side="double" rotation="0 180 0" >
+      <a-plane visible="false" class="_cardSelection1"  position="0.05 1.6 -1.3" scale="0.1 0.15 0.1" color="#afafaf" src="Assets/hero-texture.png" side="double" rotation="0 180 0" >
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
         </a-plane>  
     </a-entity>`;
     
     const czarCardHtml = `
-        <a-plane class="_cardCzar" sq-collider sq-interactable data-raycastable position="0 1.46 -1.4" scale="0.1 0.15 0.1" color="#000000" src="https://firer.at/files/hah/hero-texture.png" side="double" rotation="0 180 0" visiable="false">
+        <a-plane class="_cardCzar" sq-collider sq-interactable data-raycastable position="0 1.46 -1.4" scale="0.1 0.15 0.1" color="#000000" src="Assets/hero-texture.png" side="double" rotation="0 180 0" visiable="false">
           <a-text baseline="top" value="-" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
         </a-plane>`;
     const resetHtml = `
         <a-entity scale="0.6 0.6 0.6" position="0.4 1.5 -1.3">
-          <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 0 0" class="_resetCardSelection" gltf-model="https://firer.at/files/hah/ButtonS.glb"></a-entity>
-          <a-plane position="0 0 0" scale="0.2 0.2 0.2" transparent="true" src="https://firer.at/files/hah/cross.png" rotation="0 180 0"></a-plane> 
+          <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 0 0" class="_resetCardSelection" gltf-model="Assets/ButtonS.glb"></a-entity>
+          <a-plane position="0 0 0" scale="0.2 0.2 0.2" transparent="true" src="Assets/cross.png" rotation="0 180 0"></a-plane> 
         </a-entity>
         <a-entity scale="0.6 0.6 0.6" position="-0.4 1.5 -1.3">
-          <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 0 0" class="_submitCardSelection" gltf-model="https://firer.at/files/hah/ButtonS.glb"></a-entity>
-          <a-plane position="0 0 0" scale="0.2 0.2 0.2" transparent="true" src="https://firer.at/files/hah/check.png" rotation="0 180 0"></a-plane> 
+          <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 0 0" class="_submitCardSelection" gltf-model="Assets/ButtonS.glb"></a-entity>
+          <a-plane position="0 0 0" scale="0.2 0.2 0.2" transparent="true" src="Assets/check.png" rotation="0 180 0"></a-plane> 
         </a-entity>
         
-       <!-- <a-plane class="_resetCardSelection" data-raycastable sq-boxcollider="size: 1 1 0.05" sq-interactable position="0.4 1.5 -1.3" scale="0.1 0.1 0.1" transparent="true" src="https://firer.at/files/hah/cross.png" rotation="0 180 0" visible="false"></a-plane> -->  
-       <!--  <a-plane class="_submitCardSelection" data-raycastable sq-boxcollider="size: 1 1 0.05" sq-interactable position="-0.4 1.5 -1.3" scale="0.1 0.1 0.1" transparent="true" src="https://firer.at/files/hah/check.png" rotation="0 180 0" visible="false"></a-plane> -->`;
+       <!-- <a-plane class="_resetCardSelection" data-raycastable sq-boxcollider="size: 1 1 0.05" sq-interactable position="0.4 1.5 -1.3" scale="0.1 0.1 0.1" transparent="true" src="Assets/cross.png" rotation="0 180 0" visible="false"></a-plane> -->  
+       <!--  <a-plane class="_submitCardSelection" data-raycastable sq-boxcollider="size: 1 1 0.05" sq-interactable position="-0.4 1.5 -1.3" scale="0.1 0.1 0.1" transparent="true" src="Assets/check.png" rotation="0 180 0" visible="false"></a-plane> -->`;
     const cardsHtml = `
       <a-entity class="_cardRoot" position="0 1.4 -1.3" rotation="-30 180 0" visible="false">
-        <a-plane data-raycastable sq-collider sq-interactable class="_card0" position="0.265 -0.04 0" scale="0.1 0.15 0.1" color="#afafaf" src="https://firer.at/files/hah/hero-texture.png" side="double" rotation="0 0 -10">
+        <a-plane data-raycastable sq-collider sq-interactable class="_card0" position="0.265 -0.04 0" scale="0.1 0.15 0.1" color="#afafaf" src="Assets/hero-texture.png" side="double" rotation="0 0 -10">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
         </a-plane>
-        <a-plane data-raycastable sq-collider sq-interactable class="_card1" position="0.16 -0.015 0" scale="0.1 0.15 0.1" color="#afafaf" src="https://firer.at/files/hah/hero-texture.png" side="double" rotation="0 0 -6">
+        <a-plane data-raycastable sq-collider sq-interactable class="_card1" position="0.16 -0.015 0" scale="0.1 0.15 0.1" color="#afafaf" src="Assets/hero-texture.png" side="double" rotation="0 0 -6">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
         </a-plane>
-        <a-plane data-raycastable sq-collider sq-interactable class="_card2" position="0.055 0 0" scale="0.1 0.15 0.1" color="#afafaf" src="https://firer.at/files/hah/hero-texture.png" side="double" rotation="0 0 -3">
+        <a-plane data-raycastable sq-collider sq-interactable class="_card2" position="0.055 0 0" scale="0.1 0.15 0.1" color="#afafaf" src="Assets/hero-texture.png" side="double" rotation="0 0 -3">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
         </a-plane>
-        <a-plane data-raycastable sq-collider sq-interactable class="_card3" position="-0.055 0 0" scale="0.1 0.15 0.1" color="#afafaf" src="https://firer.at/files/hah/hero-texture.png" side="double" rotation="0 0 3">
+        <a-plane data-raycastable sq-collider sq-interactable class="_card3" position="-0.055 0 0" scale="0.1 0.15 0.1" color="#afafaf" src="Assets/hero-texture.png" side="double" rotation="0 0 3">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
         </a-plane>
-        <a-plane data-raycastable sq-collider sq-interactable class="_card4" position="-0.16 -0.015 0" scale="0.1 0.15 0.1" color="#afafaf" src="https://firer.at/files/hah/hero-texture.png" side="double" rotation="0 0 6">
+        <a-plane data-raycastable sq-collider sq-interactable class="_card4" position="-0.16 -0.015 0" scale="0.1 0.15 0.1" color="#afafaf" src="Assets/hero-texture.png" side="double" rotation="0 0 6">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
         </a-plane>
-        <a-plane data-raycastable sq-collider sq-interactable class="_card5" position="-0.265 -0.04 0" scale="0.1 0.15 0.1" color="#afafaf" src="https://firer.at/files/hah/hero-texture.png" side="double" rotation="0 0 10">
+        <a-plane data-raycastable sq-collider sq-interactable class="_card5" position="-0.265 -0.04 0" scale="0.1 0.15 0.1" color="#afafaf" src="Assets/hero-texture.png" side="double" rotation="0 0 10">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
         </a-plane>
         <a-entity position="0 -0.155 0">
-          <a-plane data-raycastable sq-collider sq-interactable class="_card6" position="0.265 -0.04 0" scale="0.1 0.15 0.1" color="#afafaf" src="https://firer.at/files/hah/hero-texture.png" side="double" rotation="0 0 -10">
+          <a-plane data-raycastable sq-collider sq-interactable class="_card6" position="0.265 -0.04 0" scale="0.1 0.15 0.1" color="#afafaf" src="Assets/hero-texture.png" side="double" rotation="0 0 -10">
             <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
           </a-plane>
-          <a-plane data-raycastable sq-collider sq-interactable class="_card7" position="0.16 -0.015 0" scale="0.1 0.15 0.1" color="#afafaf" src="https://firer.at/files/hah/hero-texture.png" side="double" rotation="0 0 -6">
+          <a-plane data-raycastable sq-collider sq-interactable class="_card7" position="0.16 -0.015 0" scale="0.1 0.15 0.1" color="#afafaf" src="Assets/hero-texture.png" side="double" rotation="0 0 -6">
             <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
           </a-plane>
-          <a-plane data-raycastable sq-collider sq-interactable class="_card8" position="0.055 0 0" scale="0.1 0.15 0.1" color="#afafaf" src="https://firer.at/files/hah/hero-texture.png" side="double" rotation="0 0 -3">
+          <a-plane data-raycastable sq-collider sq-interactable class="_card8" position="0.055 0 0" scale="0.1 0.15 0.1" color="#afafaf" src="Assets/hero-texture.png" side="double" rotation="0 0 -3">
             <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
           </a-plane>
-          <a-plane data-raycastable sq-collider sq-interactable class="_card9" position="-0.055 0 0" scale="0.1 0.15 0.1" color="#afafaf" src="https://firer.at/files/hah/hero-texture.png" side="double" rotation="0 0 3">
+          <a-plane data-raycastable sq-collider sq-interactable class="_card9" position="-0.055 0 0" scale="0.1 0.15 0.1" color="#afafaf" src="Assets/hero-texture.png" side="double" rotation="0 0 3">
             <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
           </a-plane>
-          <a-plane data-raycastable sq-collider sq-interactable class="_card10" position="-0.16 -0.015 0" scale="0.1 0.15 0.1" color="#afafaf" src="https://firer.at/files/hah/hero-texture.png" side="double" rotation="0 0 6">
+          <a-plane data-raycastable sq-collider sq-interactable class="_card10" position="-0.16 -0.015 0" scale="0.1 0.15 0.1" color="#afafaf" src="Assets/hero-texture.png" side="double" rotation="0 0 6">
             <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
           </a-plane>
-          <a-plane data-raycastable sq-collider sq-interactable class="_card11" position="-0.265 -0.04 0" scale="0.1 0.15 0.1" color="#afafaf" src="https://firer.at/files/hah/hero-texture.png" side="double" rotation="0 0 10">
+          <a-plane data-raycastable sq-collider sq-interactable class="_card11" position="-0.265 -0.04 0" scale="0.1 0.15 0.1" color="#afafaf" src="Assets/hero-texture.png" side="double" rotation="0 0 10">
             <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
           </a-plane>
         </a-entity>
@@ -702,45 +702,45 @@ class HahGameSystem {
         </a-entity>`).join("");
     const html = `
       <a-box scale="0.1 0.1 0.1" color="red" class="resetGame" data-raycastable sq-collider sq-interactable position="0 0.05 0"></a-box>
-      <a-entity sq-nonconvexcollider="recursive: true" sq-interactable="recursive: true" gltf-model="https://firer.at/files/hah/ha_h__table_main.glb" scale="0.01 0.01 0.01"></a-entity>
+      <a-entity sq-nonconvexcollider="recursive: true" sq-interactable="recursive: true" gltf-model="Assets/ha_h__table_main.glb" scale="0.01 0.01 0.01"></a-entity>
         ${playerSection}
         <a-entity position="0 1.3 0.1" sq-billboard look-at="[camera]" scale="0 0 0" class="_areYouSure">
           <a-plane scale="0.5 0.3 1" color="#000" rotation="0 0 0"></a-plane>
           <a-text baseline="center" align="center" value="Are you sure?" scale="0.25 0.25 1" position="0 0.07 0.01"></a-text>
           <a-entity position="-0.1 -0.05 0.1" scale="0.6 0.6 0.6">
-            <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 180 0" class="_cancel" gltf-model="https://firer.at/files/hah/ButtonS.glb"></a-entity>
-            <a-plane position="0 0 0" scale="0.2 0.2 0.2" transparent="true" src="https://firer.at/files/hah/cross.png" rotation="0 0 0"></a-plane> 
+            <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 180 0" class="_cancel" gltf-model="Assets/ButtonS.glb"></a-entity>
+            <a-plane position="0 0 0" scale="0.2 0.2 0.2" transparent="true" src="Assets/cross.png" rotation="0 0 0"></a-plane> 
           </a-entity>
           <a-entity position="0.1 -0.05 0.1" scale="0.6 0.6 0.6">
-            <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 180 0" class="_confirm" gltf-model="https://firer.at/files/hah/ButtonS.glb"></a-entity>
-            <a-plane position="0 0 0" scale="0.2 0.2 0.2" transparent="true" src="https://firer.at/files/hah/check.png" rotation="0 0 0"></a-plane> 
+            <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 180 0" class="_confirm" gltf-model="Assets/ButtonS.glb"></a-entity>
+            <a-plane position="0 0 0" scale="0.2 0.2 0.2" transparent="true" src="Assets/check.png" rotation="0 0 0"></a-plane> 
           </a-entity>
         </a-entity>
         
         <a-entity position="0 2 0" class="_gameCard"  visible="false">
           <a-entity sq-billboard look-at="[camera]">
-            <a-entity gltf-model="https://firer.at/files/hah/card%20(1).glb" scale="12.8 12.8 12.8" position="0 0 0" rotation="-90 0 0"></a-entity>
+            <a-entity gltf-model="Assets/card%20(1).glb" scale="12.8 12.8 12.8" position="0 0 0" rotation="-90 0 0"></a-entity>
             <a-text class="_cardCzar0" baseline="top" value="-" scale="0.3 0.3 0.3" rotation="0 0 0" position="0.31 0 0.021"></a-text>
-            <a-plane position="0 0 0" scale="0.75 1.125 0.75" color="#afafaf" rotation="0 0 0" src="https://firer.at/files/hah/hero-texture.png" side="double" visible="false">
+            <a-plane position="0 0 0" scale="0.75 1.125 0.75" color="#afafaf" rotation="0 0 0" src="Assets/hero-texture.png" side="double" visible="false">
               <a-text class="_cardCzar1" color="#000" baseline="top" value="-" scale="0.375 0.25 0.375" position="-0.4 0.4 0.01"></a-text>
             </a-plane>
-            <a-plane position="0.8 0 0" scale="0.75 1.125 0.75" color="#afafaf" rotation="0 0 0" src="https://firer.at/files/hah/hero-texture.png" side="double" visible="false">
+            <a-plane position="0.8 0 0" scale="0.75 1.125 0.75" color="#afafaf" rotation="0 0 0" src="Assets/hero-texture.png" side="double" visible="false">
               <a-text class="_cardCzar2" color="#000" baseline="top" value="-" scale="0.375 0.25 0.375" position="-0.4 0.4 0.01"></a-text>
             </a-plane>
           </a-entity>
           
           <a-entity sq-billboard look-at="[camera]" position="0 -0.7 0">          
             <a-entity visible="false" position="-0.1 0 0" scale="0.6 0.6 0.6">
-              <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 180 0" class="_prevPlayerResponse" gltf-model="https://firer.at/files/hah/ButtonS.glb"></a-entity>
+              <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 180 0" class="_prevPlayerResponse" gltf-model="Assets/ButtonS.glb"></a-entity>
               <a-text value=">" align="center" rotation="0 180 0"></a-text>
             </a-entity>
             <a-entity position="0.1 0 0" visible="false" scale="0.6 0.6 0.6">
-              <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 180 0" class="_nextPlayerResponse" gltf-model="https://firer.at/files/hah/ButtonS.glb"></a-entity>
+              <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 180 0" class="_nextPlayerResponse" gltf-model="Assets/ButtonS.glb"></a-entity>
               <a-text value="<" align="center" rotation="0 180 0"></a-text>
             </a-entity>
             <a-entity position="0.3 0 0" visible="false" scale="0.6 0.6 0.6">
-              <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 180 0" class="_submitWinner" gltf-model="https://firer.at/files/hah/ButtonS.glb"></a-entity>
-              <a-plane position="0 0 0" scale="0.2 0.2 0.2" transparent="true" src="https://firer.at/files/hah/check.png" rotation="0 0 0"></a-plane> 
+              <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 180 0" class="_submitWinner" gltf-model="Assets/ButtonS.glb"></a-entity>
+              <a-plane position="0 0 0" scale="0.2 0.2 0.2" transparent="true" src="Assets/check.png" rotation="0 0 0"></a-plane> 
             </a-entity>
           </a-entity>
         </a-entity>
@@ -749,10 +749,10 @@ class HahGameSystem {
 
         <a-entity position="0 2 0" class="_startCard">
           <a-entity sq-billboard look-at="[camera]" position="0 -0.7 0" >
-            <a-entity class="_clickToJoinButton" visible="false" data-raycastable sq-boxcollider="size: 0.6 0.2 0.05" sq-interactable gltf-model="https://firer.at/files/hah/ButtonL.glb" scale="0.7 0.7 0.7" rotation="0 180 0"></a-entity>
+            <a-entity class="_clickToJoinButton" visible="false" data-raycastable sq-boxcollider="size: 0.6 0.2 0.05" sq-interactable gltf-model="Assets/ButtonL.glb" scale="0.7 0.7 0.7" rotation="0 180 0"></a-entity>
           </a-entity>
           <a-entity sq-billboard look-at="[camera]" class="_startPreviewCard">
-            <a-entity gltf-model="https://firer.at/files/hah/card%20(1).glb" scale="10 10 10" position="0 0 0" rotation="-90 0 0"></a-entity>
+            <a-entity gltf-model="Assets/card%20(1).glb" scale="10 10 10" position="0 0 0" rotation="-90 0 0"></a-entity>
             <a-text value="Holograms\nAgainst\nHumanity" scale="0.45 0.45 0.45" rotation="0 180 0" position="0.25 0.2 -0.02"></a-text>
             <a-text value="Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nPorted to Banter by Shane" scale="0.15 0.15 0.15" rotation="0 180 0" position="0.25 -0.26 -0.02"></a-text>
             <a-entity rotation="0 180 0">
@@ -765,7 +765,7 @@ class HahGameSystem {
           <a-text baseline="center" color="red" align="center" value="Click to exit" scale="0.25 0.25 1" rotation="-90 0 0" position="0 0.06 0"></a-text>
           <a-box data-raycastable sq-boxcollider sq-interactable position="0 -0.01 0" scale="0.48 0.11 0.17"></a-box>
         </a-entity>
-        <a-entity class="_hahBox" gltf-model="https://firer.at/files/hah/box.glb" position="0 1.08 0" rotation="-180 0 0" scale="2 2 2" ></a-entity>
+        <a-entity class="_hahBox" gltf-model="Assets/box.glb" position="0 1.08 0" rotation="-180 0 0" scale="2 2 2" ></a-entity>
         <a-ring rotation="-90 0 0" radius-inner="0.12" radius-outer="0.17" position="0 1 0" color="#118e98" animation="property: position; from: 0 1 0; to: 0 0.86 0; loop: true; dir: alternate; easing: linear; dur: 3000"></a-ring>
         <a-ring rotation="-90 0 0" radius-inner="0.18" radius-outer="0.23" position="0 1 0" color="#118e98" animation="property: position; from: 0 0.98 0; to: 0 0.88 0; loop: true; dir: alternate; easing: linear; dur: 3000;"></a-ring>
         <a-ring rotation="-90 0 0" radius-inner="0.24" radius-outer="0.29" position="0 1 0" color="#118e98" animation="property: position; from: 0 0.96 0; to: 0 0.90 0; loop: true; dir: alternate; easing: linear; dur: 3000;"></a-ring>
