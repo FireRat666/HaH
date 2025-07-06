@@ -603,7 +603,18 @@ class HahGameSystem {
     }
   }
   playSound(name) {
-    var audio = new Audio(`${WEBSITE_URL}/Assets/${name}`);
+    // Use a global tracker to prevent double-audio from multiple instances.
+    window.hahAudioTracker = window.hahAudioTracker || {};
+    const now = Date.now();
+    const lastPlayed = window.hahAudioTracker[name] || 0;
+
+    // If the same sound was played in the last 100ms, ignore this new request.
+    if (now - lastPlayed < 100) {
+      return;
+    }
+    window.hahAudioTracker[name] = now;
+
+    const audio = new Audio(`${WEBSITE_URL}/Assets/${name}`);
     audio.volume = 0.3;
     audio.play();
   }
