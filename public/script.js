@@ -351,6 +351,7 @@ class HahGameSystem {
     cardCzar0.setAttribute("position", "0.33 0.45 -0.02");
     this.firstCardSelection = null;
     this.secondCardSelection = null;
+    this.hasSubmit = false;
     for(let i = 0;i < 10; i ++) {
       const playerSection = this.parent.querySelector("._playerPosition" + i);
       const cardSelection = playerSection.querySelector("._cardSelection");
@@ -607,7 +608,6 @@ class HahGameSystem {
     
     this.game = game;
     this.canStart = false;
-    this.hasSubmit = false;
     
     if(this.params.debug === "true") {
       console.log("sync", game);

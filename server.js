@@ -248,6 +248,12 @@ class GameServer{
     const player = game.players[ws.u.id];
     if (!player) return; // Player not in game, ignore.
 
+    // Server-side validation to prevent multiple submissions in one round.
+    if (player.selected && player.selected.length > 0) {
+      this.send(ws, "error", "You have already submitted cards for this round.");
+      return;
+    }
+
     const numResponses = game.currentBlackCard.numResponses || 1;
     // Expecting an array of card objects, each with a unique _id
     const submittedCards = (json.data || []).filter(d => d && d._id);
