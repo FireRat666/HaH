@@ -484,7 +484,7 @@ class HahGameSystem {
         }
         this.submitWinner.clickCallback = this.debounce(() => {
           const winningPlayer = gamePlayersWithoutCzar[this.currentPlayer];
-          const confirmationMessage = `Confirm this card as the winner?`;
+          const confirmationMessage = `Confirm this card?`;
           
           czarControls.forEach(c => this.hide(c));
 
