@@ -113,7 +113,7 @@ class HahGameSystem {
       });
     }
   }
-  confirm(callback, message = "Are you sure?") {
+  confirm(callback, message = "Are you sure?", onCleanup) {
     const areYouSureText = this.areYouSure.querySelector("a-text");
     this.setText(areYouSureText, message);
     this.areYouSure.setAttribute("scale", "1 1 1");
@@ -125,6 +125,7 @@ class HahGameSystem {
       this.confirmButton.removeEventListener("click", confirmHandler);
       this.cancelButton.removeEventListener("click", cancelHandler);
       this.setText(areYouSureText, "Are you sure?"); // Reset for next use
+      if (onCleanup) onCleanup();
     };
 
     confirmHandler = () => {
@@ -409,9 +410,9 @@ class HahGameSystem {
     });
     const _prevPlayerResponse = this.gameCard.querySelector("._prevPlayerResponse");
     const _nextPlayerResponse = this.gameCard.querySelector("._nextPlayerResponse");
-    if(game.showBlack && !game.winner){ //  && (game.players[window.user.id] || game.waitingRoom.map(d => d.id).indexOf(window.user.id) > -1)
-      this.show(_nextPlayerResponse.parentElement);
-      this.show(_prevPlayerResponse.parentElement);
+    const czarControls = [_prevPlayerResponse.parentElement, _nextPlayerResponse.parentElement, this.submitWinner.parentElement];
+    if(game.showBlack && !game.winner){
+      czarControls.forEach(c => this.show(c));
       this.show(this.gameCard);
       const _cardCzar0 = this.gameCard.querySelector("._cardCzar0");
       const _cardCzar1 = this.gameCard.querySelector("._cardCzar1");
@@ -432,18 +433,13 @@ class HahGameSystem {
         this.hide(_cardCzar1.parentElement);
         _cardCzar0.previousSibling.previousSibling.setAttribute("position", "0 0 0");
         _cardCzar0.setAttribute("position", "-0.33 0.45 0.02");
-        this.hide(this.submitWinner.parentElement);
-        this.hide(_nextPlayerResponse.parentElement);
-        this.hide(_prevPlayerResponse.parentElement);
+        czarControls.forEach(c => this.hide(c));
       }else if(this.isOneResponse) {
         this.hide(_cardCzar2.parentElement);
         this.show(_cardCzar1.parentElement);
         _cardCzar1.parentElement.setAttribute("position", "0.4 0 0");
         _cardCzar0.previousSibling.previousSibling.setAttribute("position", "-0.4 0 0");
         _cardCzar0.setAttribute("position", "-0.73 0.45 0.02");
-        this.show(this.submitWinner.parentElement);
-        this.show(_nextPlayerResponse.parentElement);
-        this.show(_prevPlayerResponse.parentElement);
         setGameCard();
       }else{
         this.show(_cardCzar2.parentElement);
@@ -451,9 +447,6 @@ class HahGameSystem {
         _cardCzar1.parentElement.setAttribute("position", "0 0 0");
         _cardCzar0.previousSibling.previousSibling.setAttribute("position", "-0.82 0 0");
         _cardCzar0.setAttribute("position", "-1.13 0.45 0.02");
-        this.show(this.submitWinner.parentElement);
-        this.show(_nextPlayerResponse.parentElement);
-        this.show(_prevPlayerResponse.parentElement);
         setGameCard();
       }
       if(window.user.id === game.czar) {
@@ -491,21 +484,23 @@ class HahGameSystem {
         }
         this.submitWinner.clickCallback = this.debounce(() => {
           const winningPlayer = gamePlayersWithoutCzar[this.currentPlayer];
-          let winningCardText = winningPlayer.selected[0].text;
-          if (winningCardText.length > 50) {
-            winningCardText = winningCardText.substring(0, 47) + "...";
-          }
-          const confirmationMessage = `Confirm Winner:\n"${winningCardText}"`;
+          const confirmationMessage = `Confirm this card as the winner?`;
+          
+          czarControls.forEach(c => this.hide(c));
+
+          const onCleanup = () => {
+            this.show(this.submitWinner.parentElement);
+            this.showHideNextPrev(_nextPlayerResponse, _prevPlayerResponse, gamePlayersWithoutCzar.length - 1);
+          };
+
           this.confirm(() => {
             console.log("picking winner: ", this.currentPlayer, winningPlayer);
             this.send("choose-winner", winningPlayer._id);
-          }, confirmationMessage);
+          }, confirmationMessage, onCleanup);
         });
         this.submitWinner.addEventListener("click", this.submitWinner.clickCallback);
       }else{
-        this.hide(this.submitWinner.parentElement);
-        this.hide(_nextPlayerResponse.parentElement);
-        this.hide(_prevPlayerResponse.parentElement);
+        czarControls.forEach(c => this.hide(c));
       }
     }else{
         this.hide(this.gameCard);
