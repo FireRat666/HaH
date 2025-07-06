@@ -113,21 +113,28 @@ class HahGameSystem {
       });
     }
   }
-  confirm(callback) {
+  confirm(callback, message = "Are you sure?") {
+    const areYouSureText = this.areYouSure.querySelector("a-text");
+    this.setText(areYouSureText, message);
     this.areYouSure.setAttribute("scale", "1 1 1");
-    let confirm;
-    confirm = () => {
+
+    let confirmHandler, cancelHandler;
+
+    const cleanup = () => {
+      this.areYouSure.setAttribute("scale", "0 0 0");
+      this.confirmButton.removeEventListener("click", confirmHandler);
+      this.cancelButton.removeEventListener("click", cancelHandler);
+      this.setText(areYouSureText, "Are you sure?"); // Reset for next use
+    };
+
+    confirmHandler = () => {
       callback();
-      this.areYouSure.setAttribute("scale", "0 0 0");
-      this.confirmButton.removeEventListener("click", confirm);
+      cleanup();
     };
-    this.confirmButton.addEventListener("click", confirm);
-    let cancel;
-    cancel = () => {
-      this.areYouSure.setAttribute("scale", "0 0 0");
-      this.cancelButton.removeEventListener("click", cancel);
-    };
-    this.cancelButton.addEventListener("click", cancel);
+    cancelHandler = () => cleanup();
+
+    this.confirmButton.addEventListener("click", confirmHandler);
+    this.cancelButton.addEventListener("click", cancelHandler);
   }
   shouldShowSubmit() {
     return (this.firstCardSelection && this.isOneResponse) || (this.isTwoResponse && this.firstCardSelection && this.secondCardSelection);
@@ -483,8 +490,16 @@ class HahGameSystem {
           this.submitWinner.removeEventListener("click", this.submitWinner.clickCallback)
         }
         this.submitWinner.clickCallback = this.debounce(() => {
-          console.log("picking winner: ", this.currentPlayer, gamePlayersWithoutCzar[this.currentPlayer]);
-          this.send("choose-winner", gamePlayersWithoutCzar[this.currentPlayer]._id);
+          const winningPlayer = gamePlayersWithoutCzar[this.currentPlayer];
+          let winningCardText = winningPlayer.selected[0].text;
+          if (winningCardText.length > 50) {
+            winningCardText = winningCardText.substring(0, 47) + "...";
+          }
+          const confirmationMessage = `Confirm Winner:\n"${winningCardText}"`;
+          this.confirm(() => {
+            console.log("picking winner: ", this.currentPlayer, winningPlayer);
+            this.send("choose-winner", winningPlayer._id);
+          }, confirmationMessage);
         });
         this.submitWinner.addEventListener("click", this.submitWinner.clickCallback);
       }else{
