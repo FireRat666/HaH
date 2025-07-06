@@ -62,7 +62,7 @@ class GameServer{
     this.server.listen( port, function listening(){
       logger.info(`Server started on port ${port}`);
     });
-
+    
     process.on('SIGINT', () => this.shutdown());
     process.on('SIGTERM', () => this.shutdown());
   }
@@ -80,7 +80,7 @@ class GameServer{
         game.players[ws.u.id].connected = false;
         game.players[ws.u.id].disconnectTime = new Date().getTime();
         console.log("Kicking in 2 mins...")
-        game.players[ws.u.id].kickTimeout = setTimeout(() => {
+        game.players[ws.u.id].kickTimeout = setTimeout(() =>{
           if(!game.players[ws.u.id] || !game.players[ws.u.id].connected) {
             logger.info(`${name} kicked for inactivity.`);
             this.removePlayer(ws);
