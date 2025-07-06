@@ -261,22 +261,39 @@ class HahGameSystem {
             this.secondCardSelection = player.selected[1];
             this.setText(cardSelection1.querySelector("a-text"), player.selected[1].text);
           }
-          player.cards.forEach((d, _i) => {
-            const cardEle = playerSection.querySelector('._card' + _i);
-            cardEle.card = d;
-            if(cardEle.clickCallback) {
-              cardEle.removeEventListener("click", cardEle.clickCallback);
+
+          // --- New, smarter hand update logic ---
+          const cardElements = Array.from({ length: 12 }, (_, i) => playerSection.querySelector('._card' + i));
+          const newCardData = player.cards || [];
+          
+          const newCardIds = new Set(newCardData.map(c => c._id));
+          const currentDomCards = cardElements.map(el => el.card).filter(Boolean);
+          const currentDomCardIds = new Set(currentDomCards.map(c => c._id));
+
+          const addedCards = newCardData.filter(c => !currentDomCardIds.has(c._id));
+          const freeSlots = cardElements.filter(el => !el.card || !newCardIds.has(el.card._id));
+
+          freeSlots.forEach((slot, index) => {
+            const cardToAdd = addedCards[index];
+            if (slot.clickCallback) {
+              slot.removeEventListener("click", slot.clickCallback);
+              slot.clickCallback = null;
             }
-            if(player.selected.map(d=>d.text).includes(d.text)) {
-              this.setText(cardEle.querySelector("a-text"), "-");
-              cardEle.setAttribute("scale", "0 0 0");
-            }else{
-              cardEle.setAttribute("scale", "0.1 0.15 0.1");
-              this.setText(cardEle.querySelector("a-text"), d.text);
-              cardEle.clickCallback = this.debounce(() => this.selectIndividualCard(cardEle, submit, reset, playerSection, cardSelection0, cardSelection1));
-              cardEle.addEventListener("click", cardEle.clickCallback);
+
+            if (cardToAdd) {
+              slot.card = cardToAdd;
+              this.setText(slot.querySelector("a-text"), cardToAdd.text);
+              slot.setAttribute("scale", "0.1 0.15 0.1");
+              slot.clickCallback = this.debounce(() => this.selectIndividualCard(slot, submit, reset, playerSection, cardSelection0, cardSelection1));
+              slot.addEventListener("click", slot.clickCallback);
+            } else {
+              slot.card = null;
+              this.setText(slot.querySelector("a-text"), "-");
+              slot.setAttribute("scale", "0 0 0");
             }
           });
+          // --- End of new logic ---
+
           if(this.shouldShowSubmit() && !player.selected.length) {
             this.show(submit.parentElement);
           }
