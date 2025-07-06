@@ -1,12 +1,26 @@
 const { WebSocket } = require('@encharm/cws');
 const express = require('express');
 const http = require('http');
+const winston = require('winston');
 const path = require('path');
 const deck = require("./deck");
 
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.printf(({ timestamp, level, message }) => {
+      return `[${timestamp}] ${level}: ${message}`;
+    })
+  ),
+  transports: [
+    new winston.transports.Console(),
+  ],
+});
+
 class GameServer{
   constructor() {
-    console.log("game starting...");
+    logger.info("game starting...");
     this.setupServer();
     this.games = {}
   }
@@ -27,7 +41,7 @@ class GameServer{
     this.wss.startAutoPing(10000);
     
     this.wss.on('connection', (ws, req) => {
-    //  ws.send({path: 'initial-state', data: this.room.data});
+      //  ws.send({path: 'initial-state', data: this.room.data});
       ws.on('message', msg => {
         try{
           if(msg !== "keepalive") {
@@ -35,7 +49,7 @@ class GameServer{
           }
         }catch(e) {
           console.log("parse error: ", e);
-        }
+        } 
       });
       ws.on('close', (code, reason) => {
         this.handleClose(ws);
@@ -44,27 +58,36 @@ class GameServer{
     
     this.app.use(express.static(path.join(__dirname, 'public')));
 
-    this.server.listen( 3000, function listening(){
-        console.log("game started");
+    const port = process.env.PORT || 3000;
+    this.server.listen( port, function listening(){
+      logger.info(`Server started on port ${port}`);
     });
+
+    process.on('SIGINT', () => this.shutdown());
+    process.on('SIGTERM', () => this.shutdown());
+  }
+  shutdown() {
+    logger.info('Shutting down server...');
+    this.wss.close();
+    this.server.close(() => logger.info('Server closed.'));
   }
   handleClose(ws) { 
     const name = ws.u ? ws.u.name : 'Unknown';
-    console.log(name, 'disconnected.');
+    logger.info(`${name} disconnected.`);
     Object.keys(this.games).forEach(key => {
       const game = this.games[key];
       if(ws.u && game.players[ws.u.id]) {
         game.players[ws.u.id].connected = false;
         game.players[ws.u.id].disconnectTime = new Date().getTime();
         console.log("Kicking in 2 mins...")
-        game.players[ws.u.id].kickTimeout = setTimeout(()=>{
+        game.players[ws.u.id].kickTimeout = setTimeout(() => {
           if(!game.players[ws.u.id] || !game.players[ws.u.id].connected) {
-            console.log(name, "kicked for inactivity.")
+            logger.info(`${name} kicked for inactivity.`);
             this.removePlayer(ws);
           }
         }, 1000 * 45);
         this.syncGame(game);
-      }
+      } 
       if(ws.u && game.waitingRoom.map(d => d.id).indexOf(ws.u.id) > -1) { 
         console.log(".. removed from waiting list.");
         game.waitingRoom = game.waitingRoom.filter(d => d.id !== ws.u.id);
@@ -86,13 +109,13 @@ class GameServer{
             game.players[ws.u.id].connected = true;
             game.players[ws.u.id].disconnectTime = 0;
             if(game.players[ws.u.id].kickTimeout) {
-              console.log(name, "returned within 2 mins, not kicked.")
+              logger.info(`${name} returned within 2 mins, not kicked.`);
               clearTimeout(game.players[ws.u.id].kickTimeout);
               game.players[ws.u.id].kickTimeout = null;
             }
           }
           this.syncGame(game);
-          console.log(ws.u ? ws.u.name : 'Unknown', 'connected.');
+          logger.info(`${ws.u ? ws.u.name : 'Unknown'} connected.`);
         }
         break;
       case "join-game":

@@ -47,7 +47,10 @@ class HahGameSystem {
   }
   setupWebsocket(){
     return new Promise(resolve => {
-      this.ws = new WebSocket('wss://firehah.glitch.me/');
+      // Dynamically set the WebSocket protocol and host based on the page's URL
+      const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const wsHost = window.location.host;
+      this.ws = new WebSocket(`${wsProtocol}//${wsHost}`);
       this.ws.onopen = async (event) => {
         const instance = this.params.instance;
         const user = window.user;
