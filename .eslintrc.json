@@ -1,7 +1,0 @@
-{
-	"extends": "eslint:recommended",
-	"rules": {
-		"no-console": "off",
-		"comma-dangle": "off"
-	}
-}
