@@ -224,6 +224,9 @@ class HahGameSystem {
       const cardSelection = playerSection.querySelector("._cardSelection");
       const cardSelection0 = cardSelection.querySelector("._cardSelection0");
       const cardSelection1 = cardSelection.querySelector("._cardSelection1");
+      const dumpHandContainer = playerSection.querySelector("._dumpHandContainer");
+      const dumpHandButton = playerSection.querySelector("._dumpHandButton");
+      const playerStatusText = playerSection.querySelector("._playerStatus");
       this.hide(cardSelection0);
       this.hide(cardSelection1);
       this.hide(submit.parentElement);
@@ -235,6 +238,8 @@ class HahGameSystem {
       }
       const id = playerId[0];
       const player = game.players[id];
+      this.hide(dumpHandContainer);
+      this.setText(playerStatusText, "");
       this.showTrophies(player, playerSection.querySelector('.trophies'));
       this.show(playerSection);
       this.setText(playerSection.querySelector('._nameTag'), player.name);
@@ -250,6 +255,10 @@ class HahGameSystem {
         this.setText(nameTagTimer, "");
       }else{
         this.setText(nameTagTimer, "");
+      }
+      
+      if (player.wantsNewHand) {
+        this.setText(playerStatusText, id === window.user.id ? "New hand pending..." : "Wants new hand");
       }
       
       if(game.isStarted && game.czar !== id && !game.winner) {
@@ -300,6 +309,25 @@ class HahGameSystem {
           }
           if(this.shouldShowReset() && !player.selected.length) {
             this.show(reset.parentElement);
+          }
+
+          if (game.isStarted && !game.winner && !player.hasRequestedHandDumpThisRound) {
+            this.show(dumpHandContainer);
+            if (!dumpHandButton.clickCallback) {
+              dumpHandButton.clickCallback = this.debounce(() => {
+                this.confirm(
+                  () => { this.send('dump-hand'); },
+                  "Discard hand for a new one next round? This can only be done once per round."
+                );
+              });
+              dumpHandButton.addEventListener('click', dumpHandButton.clickCallback);
+            }
+          } else {
+            this.hide(dumpHandContainer);
+            if (dumpHandButton.clickCallback) {
+              dumpHandButton.removeEventListener('click', dumpHandButton.clickCallback);
+              dumpHandButton.clickCallback = null;
+            }
           }
         }
       }
@@ -721,6 +749,10 @@ class HahGameSystem {
           <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 0 0" class="_submitCardSelection" gltf-model="${WEBSITE_URL}/Assets/ButtonS.glb"></a-entity>
           <a-plane position="0 0 0" scale="0.2 0.2 0.2" transparent="true" src="${WEBSITE_URL}/Assets/check.png" rotation="0 180 0"></a-plane> 
         </a-entity>
+        <a-entity class="_dumpHandContainer" scale="0.6 0.6 0.6" position="0 1.5 -1.3" visible="false">
+          <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 0 0" class="_dumpHandButton" gltf-model="${WEBSITE_URL}/Assets/ButtonS.glb"></a-entity>
+          <a-plane position="0 0 0" scale="0.2 0.2 0.2" transparent="true" src="${WEBSITE_URL}/Assets/trash.png" rotation="0 180 0"></a-plane>
+        </a-entity>
         
        <!-- <a-plane class="_resetCardSelection" data-raycastable sq-boxcollider="size: 1 1 0.05" sq-interactable position="0.4 1.5 -1.3" scale="0.1 0.1 0.1" transparent="true" src="${WEBSITE_URL}/Assets/cross.png" rotation="0 180 0" visible="false"></a-plane> -->  
        <!--  <a-plane class="_submitCardSelection" data-raycastable sq-boxcollider="size: 1 1 0.05" sq-interactable position="-0.4 1.5 -1.3" scale="0.1 0.1 0.1" transparent="true" src="${WEBSITE_URL}/Assets/check.png" rotation="0 180 0" visible="false"></a-plane> -->`;
@@ -772,7 +804,8 @@ class HahGameSystem {
           ${resetHtml}
           <a-entity class="_playerSliceActive" gltf-model="${this.models.playerSliceActive}"  scale="0.01 0.01 0.01"></a-entity>
           <a-entity class="_playerSlice" gltf-model="${this.models.playerSlice}"  scale="0.01 0.01 0.01"></a-entity>
-          <a-text class="_nameTagTimer" position="0 1.07 -1.37" align="center" rotation="-30 0 0" value="Nametag" scale="0.08 0.08 0.08"></a-text>
+          <a-text class="_playerStatus" position="0 1.15 -1.37" align="center" rotation="-30 0 0" value="" scale="0.08 0.08 0.08" color="yellow"></a-text>
+          <a-text class="_nameTagTimer" position="0 1.07 -1.37" align="center" rotation="-30 0 0" value="" scale="0.08 0.08 0.08"></a-text>
           <a-entity class="_namePlate" gltf-model="${this.models.namePlate}" position="0 1 -1.4" scale="0.01 0.01 0.01"></a-entity>
           <!-- <a-box position="0 1.08 -1.45" scale="0.2 0.01 0.01" color="green"></a-box> -->
           <a-text class="_nameTag" position="0 1.07 -1.43" align="center" rotation="-30 180 0" value="Nametag" scale="0.08 0.08 0.08"></a-text>

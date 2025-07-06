@@ -135,6 +135,9 @@ class GameServer{
       case "choose-winner": 
         await this.chooseWinner(json, ws);
         break;
+      case "dump-hand":
+        await this.dumpHand(ws);
+        break;
       case "reset-game": 
         const game = await this.getOrCreateGame(ws);
         this.resetGame(ws, game, true);
@@ -242,7 +245,29 @@ class GameServer{
     }else{
       this.send(ws, "error", "Only the czar can choose a winner.");
     } 
-  }  
+  }
+  async dumpHand(ws) {
+    const game = await this.getOrCreateGame(ws);
+    const player = game.players[ws.u.id];
+    if (!player) {
+      this.send(ws, "error", "You are not in the game.");
+      return;
+    }
+    if (ws.u.id === game.czar) {
+      this.send(ws, "error", "The czar cannot dump their hand.");
+      return;
+    }
+    if (player.hasRequestedHandDumpThisRound) {
+      this.send(ws, "error", "You can only request a new hand once per round.");
+      return;
+    }
+
+    player.wantsNewHand = true;
+    player.hasRequestedHandDumpThisRound = true;
+    logger.info(`${player.name} has requested a new hand for the next round.`);
+    
+    this.syncGame(game);
+  }
   async chooseCards(json, ws) {
     const game = await this.getOrCreateGame(ws);
     const player = game.players[ws.u.id];
@@ -293,7 +318,9 @@ class GameServer{
         name: d.name,
         position: this.getPosition(game),
         connected:true,
-        disconnectTime:0
+        disconnectTime:0,
+        wantsNewHand: false,
+        hasRequestedHandDumpThisRound: false
       }
     })
     game.waitingRoom = [];
@@ -306,6 +333,20 @@ class GameServer{
     if(!game.czar){
       game.czar = players[0];
     }
+    players.forEach(d => {
+      const player = game.players[d];
+      if (player.wantsNewHand) {
+        logger.info(`Replacing hand for ${player.name}.`);
+        if (player.cards && player.cards.length > 0) {
+          game.white.push(...player.cards.filter(c => c));
+        }
+        player.cards = [];
+        player.wantsNewHand = false;
+        // Shuffling the deck after adding cards back is good practice
+        game.white.sort(() => Math.random() - 0.5);
+      }
+      player.hasRequestedHandDumpThisRound = false;
+    });
     players.forEach(d => {
       const player = game.players[d];
       player.cards = player.cards.filter(c => c);
@@ -350,7 +391,9 @@ class GameServer{
         name: ws.u.name,
         position: this.getPosition(game),
         connected:true,
-        disconnectTime:0
+        disconnectTime:0,
+        wantsNewHand: false,
+        hasRequestedHandDumpThisRound: false
       };
     }
     this.playSound(game, "playerJoin.ogg");
@@ -443,9 +486,9 @@ class GameServer{
       const _players = {};
       playerIds.forEach(id => {
         const player = players[id];
-        const { _id, trophies, selected, name, position, connected, disconnectTime } = player;
+        const { _id, trophies, selected, name, position, connected, disconnectTime, wantsNewHand, hasRequestedHandDumpThisRound } = player;
         
-        const publicPlayerView = { _id, trophies, selected, name, position, connected, disconnectTime };
+        const publicPlayerView = { _id, trophies, selected, name, position, connected, disconnectTime, wantsNewHand, hasRequestedHandDumpThisRound };
 
         // Reveal cards if it's the owner OR if debug mode is on.
         if (id === targetPlayerId || debug) {
