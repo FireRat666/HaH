@@ -895,10 +895,10 @@ class HahGameSystem {
           <a-entity sq-billboard look-at="[camera]" class="_startPreviewCard">
             <a-entity gltf-model="${WEBSITE_URL}/Assets/card%20(1).glb" scale="10 10 10" position="0 0 0" rotation="-90 0 0"></a-entity>
             <a-text value="Holograms\nAgainst\nHumanity" scale="0.45 0.45 0.45" rotation="0 180 0" position="0.25 0.2 -0.02"></a-text>
-            <a-text value="Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nPorted to Banter by Shane" scale="0.15 0.15 0.15" rotation="0 180 0" position="0.25 -0.26 -0.02" material="shader: flat;"></a-text>
+            <a-text value="Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nPorted to Banter by Shane\nImproved by FireRat" scale="0.15 0.15 0.15" rotation="0 180 0" position="0.25 -0.25 -0.02" material="shader: flat;"></a-text>
             <a-entity rotation="0 180 0">
               <a-text value="Holograms\nAgainst\nHumanity" scale="0.45 0.45 0.45" rotation="0 180 0" position="0.25 0.2 -0.02" material="shader: flat;"></a-text>
-              <a-text value="Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nPorted to Banter by Shane" scale="0.15 0.15 0.15" rotation="0 180 0" position="0.25 -0.26 -0.02" material="shader: flat;"></a-text>
+              <a-text value="Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nPorted to Banter by Shane\nImproved by FireRat" scale="0.15 0.15 0.15" rotation="0 180 0" position="0.25 -0.25 -0.02" material="shader: flat;"></a-text>
             </a-entity>
           </a-entity>
         </a-entity>
