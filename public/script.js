@@ -887,7 +887,7 @@ class HahGameSystem {
         </a-entity>
 
         <a-text value="" sq-billboard look-at="[camera]" class="_clickToJoin" align="center" scale="0.3 0.3 0.3" rotation="0 180 0" position="0 1.3 0"></a-text>
-
+        
         <a-entity position="0 2 0" class="_startCard">
           <a-entity sq-billboard look-at="[camera]" position="0 -0.7 0" >
             <a-entity class="_clickToJoinButton" visible="false" data-raycastable sq-boxcollider="size: 0.6 0.2 0.05" sq-interactable gltf-model="${WEBSITE_URL}/Assets/ButtonL.glb" scale="0.7 0.7 0.7" rotation="0 180 0"></a-entity>
@@ -895,15 +895,15 @@ class HahGameSystem {
           <a-entity sq-billboard look-at="[camera]" class="_startPreviewCard">
             <a-entity gltf-model="${WEBSITE_URL}/Assets/card%20(1).glb" scale="10 10 10" position="0 0 0" rotation="-90 0 0"></a-entity>
             <a-text value="Holograms\nAgainst\nHumanity" scale="0.45 0.45 0.45" rotation="0 180 0" position="0.25 0.2 -0.02"></a-text>
-            <a-text value="Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nPorted to Banter by Shane" scale="0.15 0.15 0.15" rotation="0 180 0" position="0.25 -0.26 -0.02"></a-text>
+            <a-text value="Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nPorted to Banter by Shane" scale="0.15 0.15 0.15" rotation="0 180 0" position="0.25 -0.26 -0.02" material="shader: flat;"></a-text>
             <a-entity rotation="0 180 0">
-              <a-text value="Holograms\nAgainst\nHumanity" scale="0.45 0.45 0.45" rotation="0 180 0" position="0.25 0.2 -0.02"></a-text>
-              <a-text value="Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nPorted to Banter by Shane" scale="0.15 0.15 0.15" rotation="0 180 0" position="0.25 -0.26 -0.02"></a-text>
+              <a-text value="Holograms\nAgainst\nHumanity" scale="0.45 0.45 0.45" rotation="0 180 0" position="0.25 0.2 -0.02" material="shader: flat;"></a-text>
+              <a-text value="Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nPorted to Banter by Shane" scale="0.15 0.15 0.15" rotation="0 180 0" position="0.25 -0.26 -0.02" material="shader: flat;"></a-text>
             </a-entity>
           </a-entity>
         </a-entity>
         <a-entity position="0 1.08 0" scale="0 0 0" class="_leaveGame">
-          <a-text baseline="center" color="red" align="center" value="Click to exit" scale="0.25 0.25 1" rotation="-90 0 0" position="0 0.06 0"></a-text>
+          <a-text baseline="center" color="red" align="center" value="Click to exit" scale="0.25 0.25 1" rotation="-90 0 0" position="0 0.06 0" material="shader: flat;"></a-text>
           <a-box data-raycastable sq-boxcollider sq-interactable position="0 -0.01 0" scale="0.48 0.11 0.17"></a-box>
         </a-entity>
         <a-entity class="_hahBox" gltf-model="${WEBSITE_URL}/Assets/box.glb" position="0 1.08 0" rotation="-180 0 0" scale="2 2 2" ></a-entity>

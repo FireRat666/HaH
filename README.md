@@ -3,6 +3,11 @@ Holograms Against Humanity
 
 A terrible game for terrible Banters. This is a clone of Cards Against Humanity designed to be played in the social platform BanterVR.
 
+Adapted for AltspaceVR by:
+Derogatory, falkrons, schmidtec
+Ported to Banter by Shane
+Ported from Glitch to Render by FireRat
+
 ## Local Development
 
 1.  **Prerequisites**: Make sure you have Node.js installed.
