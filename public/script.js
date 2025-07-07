@@ -162,12 +162,14 @@ class HahGameSystem {
       this.secondCardSelection = cardele;
       this.setText(cardSelection1.querySelector("a-text"), cardele.card.text);
       this.show(cardSelection1);
+      this.show(cardSelection0); // Ensure first card preview remains visible
     }else{
       this.show(cardSelection0);
       this.firstCardSelection = cardele;
       this.setText(cardSelection0.querySelector("a-text"), cardele.card.text);
       this.show(reset.parentElement);
     }
+
     if(playerSection.submitCallback) {
       submit.removeEventListener("click", playerSection.submitCallback);
     }
@@ -790,7 +792,7 @@ class HahGameSystem {
         </a-plane>
         <a-plane data-raycastable sq-collider sq-interactable class="_card1" position="0.16 -0.015 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 -6">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
-        </a-plane>
+        </a-plane> 
         <a-plane data-raycastable sq-collider sq-interactable class="_card2" position="0.055 0 0" scale="0.1 0.15 0.1" color="#afafaf" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 -3">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
         </a-plane>
