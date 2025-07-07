@@ -549,12 +549,6 @@ class HahGameSystem {
     czarControls.forEach(c => this.show(c));
 
     const setGameCard = () => {
-      if (responses[this.currentPlayer]) {
-        const currentResponse = responses[this.currentPlayer];
-        this.setText(this.gameCard.querySelector("._cardCzar1"), currentResponse.selected[0]?.text || "");
-        if (this.isTwoResponse) {
-          this.setText(this.gameCard.querySelector("._cardCzar2"), currentResponse.selected[1]?.text || "");
-        }
       }
     };
 
