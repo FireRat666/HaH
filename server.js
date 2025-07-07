@@ -481,12 +481,19 @@ class GameServer{
     return game;
   }
   getPosition(game) {
-    const position = Math.floor(Math.random() * 10);
-    if(Object.keys(game.players).map(d => game.players[d].position).indexOf(position) > -1) {
-      return this.getPosition(game);
-    }else{
-      return position;
+    const allPositions = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+    const occupiedPositions = new Set(Object.values(game.players).map(p => p.position));
+
+    // This case should be handled by the game-full check, but it's good to be safe.
+    if (occupiedPositions.size >= allPositions.length) {
+      logger.error("Attempted to get a position in a full game.");
+      return -1;
     }
+
+    const availablePositions = allPositions.filter(p => !occupiedPositions.has(p));
+    
+    // Return a random position from the available ones.
+    return availablePositions[Math.floor(Math.random() * availablePositions.length)];
   } 
   send(socket, path, data) {
      socket.send(JSON.stringify({path, data}));
