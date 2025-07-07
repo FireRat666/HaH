@@ -1,12 +1,18 @@
 Holograms Against Humanity
 ==========================
 
-A terrible game for terrible Banters. This is a clone of Cards Against Humanity designed to be played in the social platform BanterVR.
+A terrible game for terrible people, now in your favorite virtual worlds. This is a clone of Cards Against Humanity designed to be easily embedded in social VR platforms like BanterVR.
 
-Adapted for AltspaceVR by:
-Derogatory, falkrons, schmidtec
-Ported to Banter by Shane
-Ported from Glitch to Render by FireRat
+* Adapted for AltspaceVR by: Derogatory, falkrons, schmidtec
+* Ported to Banter by Shane, Improved and ported from Glitch by FireRat
+
+## Features
+
+*   **Multiplayer Fun**: Play with up to 10 players in a single game room.
+*   **Player Reconnect**: Disconnected players can rejoin a game in progress.
+*   **Custom Decks**: Use the default card deck, other included decks, or load your own from any public URL.
+*   **Easy Integration**: Embed the game into any web-based world with a single script tag.
+*   **Simple Deployment**: Ready for quick simple deployment on services like Render.
 
 ## Local Development
 
@@ -46,7 +52,7 @@ Here's an example of how you might use it:
     *   **External Deck**: Provide a full URL to a publicly accessible JSON file that follows the correct deck format.
 *   `debug`: (Default: `"false"`) Set to `"true"` to enable extra logging in the browser's developer console.
 *   `one-for-each-instance`: (Default: `"false"`) A special flag for BanterVR. When set to `"true"`, it automatically creates a unique game for each Banter room instance, preventing players in different rooms from joining the same game.
-*   `uid`: (Default: `null`) Can be used to set a specific guest user ID. If not provided, a random one is generated and stored in local storage.
+*   `uid`: (Default: `null`) A unique identifier for a player. If not provided, a random guest ID is generated and stored in the browser's local storage. This attribute is useful for platform integrations (like BanterVR) where the platform can inject a persistent user ID to maintain player identity across sessions.
 
 ## Deployment to Render
 
