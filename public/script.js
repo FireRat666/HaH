@@ -455,128 +455,145 @@ class HahGameSystem {
     this.setText(this.mainCTAJoinText, value);
   }
   czarPreviewAndSelect(players, game) {
+    if (!game.showBlack || game.winner) {
+      this.hide(this.gameCard);
+      return;
+    }
+
+    this.show(this.gameCard);
     this.currentPlayer  = game.currentPreviewResponse || 0;
-    const gamePlayersWithoutCzar = players.filter(d => d !== game.czar).map(d => game.players[d]);
+    const responses = this._getShuffledResponses(players, game);
+    const areAllResponsesIn = responses.every(p => p.selected && p.selected.length >= (this.isTwoResponse ? 2 : 1));
+
+    this._updateCzarPreviewLayout(responses, game, areAllResponsesIn);
+
+    if (window.user.id === game.czar) {
+      this._bindCzarPreviewControls(responses, areAllResponsesIn);
+    } else {
+      // Hide controls if the current user is not the czar.
+      const czarControls = [
+        this.gameCard.querySelector("._prevPlayerResponse").parentElement,
+        this.gameCard.querySelector("._nextPlayerResponse").parentElement,
+        this.submitWinner.parentElement
+      ];
+      czarControls.forEach(c => this.hide(c));
+    }
+  }
+  _getShuffledResponses(players, game) {
+    const gamePlayersWithoutCzar = players
+      .filter(id => id !== game.czar)
+      .map(id => game.players[id]);
 
     if (gamePlayersWithoutCzar.length > 1 && game.isStarted && game.currentBlackCard) {
-      // Create a deterministic seed for this round
-      const playerIDs = players.filter(d => d !== game.czar).sort();
+      const playerIDs = players.filter(id => id !== game.czar).sort();
       const seedString = game.czar + playerIDs.join('') + game.currentBlackCard.text;
       let seed = 0;
       for (let i = 0; i < seedString.length; i++) {
         seed += seedString.charCodeAt(i);
       }
-      // Shuffle the players so the czar doesn't know who is who by order
       this.seededShuffle(gamePlayersWithoutCzar, seed);
     }
+    return gamePlayersWithoutCzar;
+  }
+  _updateCzarPreviewLayout(responses, game, areAllResponsesIn) {
+    const cardCzar0 = this.gameCard.querySelector("._cardCzar0");
+    const cardCzar1 = this.gameCard.querySelector("._cardCzar1");
+    const cardCzar2 = this.gameCard.querySelector("._cardCzar2");
+    const cardCzar1Container = cardCzar1.parentElement;
+    const cardCzar2Container = cardCzar2.parentElement;
+    const blackCardContainer = cardCzar0.previousElementSibling.previousElementSibling;
 
-    let someResponsesMissing = false;
-    gamePlayersWithoutCzar.forEach(d => {
-      if(d.selected < 2 && this.isTwoResponse) {
-        someResponsesMissing = true;
-      } else if(d.selected < 1 && this.isOneResponse){
-        someResponsesMissing = true;
-      }
-    });
-    const _prevPlayerResponse = this.gameCard.querySelector("._prevPlayerResponse");
-    const _nextPlayerResponse = this.gameCard.querySelector("._nextPlayerResponse");
-    const czarControls = [_prevPlayerResponse.parentElement, _nextPlayerResponse.parentElement, this.submitWinner.parentElement];
-    if(game.showBlack && !game.winner){
-      czarControls.forEach(c => this.show(c));
-      this.show(this.gameCard);
-      const _cardCzar0 = this.gameCard.querySelector("._cardCzar0");
-      const _cardCzar1 = this.gameCard.querySelector("._cardCzar1");
-      const _cardCzar2 = this.gameCard.querySelector("._cardCzar2");
-      this.setText(_cardCzar0, game.currentBlackCard.text);
-      const setGameCard = () => {
-        if(!someResponsesMissing) {
-          if(this.isOneResponse) {
-            this.setText(_cardCzar1, gamePlayersWithoutCzar[this.currentPlayer].selected[0].text ); // + "\n\n" + gamePlayersWithoutCzar[this.currentPlayer].name + "( " + (this.currentPlayer + 1) + " )"
-          }else{
-            this.setText(_cardCzar1, gamePlayersWithoutCzar[this.currentPlayer].selected[0].text ); // + "\n\n" + gamePlayersWithoutCzar[this.currentPlayer].name + "( " + (this.currentPlayer + 1) + " )"
-            this.setText(_cardCzar2, gamePlayersWithoutCzar[this.currentPlayer].selected[1].text);
-          }
-        }
-      } 
-      if(someResponsesMissing) {
-        this.hide(_cardCzar2.parentElement);
-        this.hide(_cardCzar1.parentElement);
-        _cardCzar0.previousSibling.previousSibling.setAttribute("position", "0 0 0");
-        _cardCzar0.setAttribute("position", "-0.33 0.45 0.02");
-        czarControls.forEach(c => this.hide(c));
-      }else if(this.isOneResponse) {
-        this.hide(_cardCzar2.parentElement);
-        this.show(_cardCzar1.parentElement);
-        _cardCzar1.parentElement.setAttribute("position", "0.4 0 0");
-        _cardCzar0.previousSibling.previousSibling.setAttribute("position", "-0.4 0 0");
-        _cardCzar0.setAttribute("position", "-0.73 0.45 0.02");
-        setGameCard();
-      }else{
-        this.show(_cardCzar2.parentElement);
-        this.show(_cardCzar1.parentElement);
-        _cardCzar1.parentElement.setAttribute("position", "0 0 0");
-        _cardCzar0.previousSibling.previousSibling.setAttribute("position", "-0.82 0 0");
-        _cardCzar0.setAttribute("position", "-1.13 0.45 0.02");
-        setGameCard();
-      }
-      if(window.user.id === game.czar) {
-        if(this.gameCard.nextPlayerResponseCallback) {
-          _nextPlayerResponse.removeEventListener("click", this.gameCard.nextPlayerResponseCallback)
-        }
-        this.gameCard.nextPlayerResponseCallback = this.debounce(() => {
-          this.currentPlayer++;
-          if(this.currentPlayer > gamePlayersWithoutCzar.length - 1) {
-            this.currentPlayer = gamePlayersWithoutCzar.length - 1
-          }
-          setGameCard();
-          this.showHideNextPrev(_nextPlayerResponse, _prevPlayerResponse, gamePlayersWithoutCzar.length - 1);
-          console.log("preview-response next: ", this.currentPlayer, gamePlayersWithoutCzar.length, gamePlayersWithoutCzar[this.currentPlayer]);
-          this.send("preview-response", this.currentPlayer);
-        });
-        _nextPlayerResponse.addEventListener("click", this.gameCard.nextPlayerResponseCallback);
-        if(this.gameCard.prevPlayerResponseCallback) {
-          _prevPlayerResponse.removeEventListener("click", this.gameCard.prevPlayerResponseCallback)
-        }
-        this.gameCard.prevPlayerResponseCallback = this.debounce(() => {
-          this.currentPlayer--;
-          if(this.currentPlayer < 0) {
-            this.currentPlayer = 0;
-          }
-          this.showHideNextPrev(_nextPlayerResponse, _prevPlayerResponse, gamePlayersWithoutCzar.length - 1);
-          setGameCard();
-          console.log("preview-response prev: ", this.currentPlayer, gamePlayersWithoutCzar.length,  gamePlayersWithoutCzar[this.currentPlayer]);
-          this.send("preview-response", this.currentPlayer);
-        });
-        _prevPlayerResponse.addEventListener("click", this.gameCard.prevPlayerResponseCallback);
-        this.showHideNextPrev(_nextPlayerResponse, _prevPlayerResponse, gamePlayersWithoutCzar.length - 1);
-        if(this.submitWinner.clickCallback) {
-          this.submitWinner.removeEventListener("click", this.submitWinner.clickCallback)
-        }
-        this.submitWinner.clickCallback = this.debounce(() => {
-          const winningPlayer = gamePlayersWithoutCzar[this.currentPlayer];
-          const confirmationMessage = `Confirm this card?`;
-          
-          czarControls.forEach(c => this.hide(c));
+    this.setText(cardCzar0, game.currentBlackCard.text);
 
-          const onCleanup = () => {
-            this.show(this.submitWinner.parentElement);
-            this.show(_prevPlayerResponse.parentElement);
-            this.show(_nextPlayerResponse.parentElement);
-            this.showHideNextPrev(_nextPlayerResponse, _prevPlayerResponse, gamePlayersWithoutCzar.length - 1);
-          };
-
-          this.confirm(() => {
-            console.log("picking winner: ", this.currentPlayer, winningPlayer);
-            this.send("choose-winner", winningPlayer._id);
-          }, confirmationMessage, onCleanup);
-        });
-        this.submitWinner.addEventListener("click", this.submitWinner.clickCallback);
-      }else{
-        czarControls.forEach(c => this.hide(c));
+    const setGameCard = () => {
+      if (areAllResponsesIn && responses[this.currentPlayer]) {
+        const currentResponse = responses[this.currentPlayer];
+        this.setText(cardCzar1, currentResponse.selected[0]?.text || "");
+        if (this.isTwoResponse) {
+          this.setText(cardCzar2, currentResponse.selected[1]?.text || "");
+        }
       }
-    }else{
-        this.hide(this.gameCard);
+    };
+
+    if (!areAllResponsesIn) {
+      this.hide(cardCzar1Container);
+      this.hide(cardCzar2Container);
+      blackCardContainer.setAttribute("position", "0 0 0");
+      cardCzar0.setAttribute("position", "-0.33 0.45 0.02");
+    } else if (this.isOneResponse) {
+      this.hide(cardCzar2Container);
+      this.show(cardCzar1Container);
+      cardCzar1Container.setAttribute("position", "0.4 0 0");
+      blackCardContainer.setAttribute("position", "-0.4 0 0");
+      cardCzar0.setAttribute("position", "-0.73 0.45 0.02");
+      setGameCard();
+    } else { // isTwoResponse
+      this.show(cardCzar1Container);
+      this.show(cardCzar2Container);
+      cardCzar1Container.setAttribute("position", "0 0 0");
+      blackCardContainer.setAttribute("position", "-0.82 0 0");
+      cardCzar0.setAttribute("position", "-1.13 0.45 0.02");
+      setGameCard();
     }
+  }
+  _bindCzarPreviewControls(responses, areAllResponsesIn) {
+    const prevBtn = this.gameCard.querySelector("._prevPlayerResponse");
+    const nextBtn = this.gameCard.querySelector("._nextPlayerResponse");
+    const czarControls = [prevBtn.parentElement, nextBtn.parentElement, this.submitWinner.parentElement];
+
+    if (!areAllResponsesIn) {
+      czarControls.forEach(c => this.hide(c));
+      return;
+    }
+
+    czarControls.forEach(c => this.show(c));
+
+    const setGameCard = () => {
+      if (responses[this.currentPlayer]) {
+        const currentResponse = responses[this.currentPlayer];
+        this.setText(this.gameCard.querySelector("._cardCzar1"), currentResponse.selected[0]?.text || "");
+        if (this.isTwoResponse) {
+          this.setText(this.gameCard.querySelector("._cardCzar2"), currentResponse.selected[1]?.text || "");
+        }
+      }
+    };
+
+    // Cleanup old listeners to prevent memory leaks and double-firing
+    if (this.gameCard.nextPlayerResponseCallback) nextBtn.removeEventListener("click", this.gameCard.nextPlayerResponseCallback);
+    if (this.gameCard.prevPlayerResponseCallback) prevBtn.removeEventListener("click", this.gameCard.prevPlayerResponseCallback);
+    if (this.submitWinner.clickCallback) this.submitWinner.removeEventListener("click", this.submitWinner.clickCallback);
+
+    // Next Button
+    this.gameCard.nextPlayerResponseCallback = this.debounce(() => {
+      this.currentPlayer = Math.min(this.currentPlayer + 1, responses.length - 1);
+      setGameCard();
+      this.showHideNextPrev(nextBtn, prevBtn, responses.length - 1);
+      this.send("preview-response", this.currentPlayer);
+    });
+    nextBtn.addEventListener("click", this.gameCard.nextPlayerResponseCallback);
+
+    // Previous Button
+    this.gameCard.prevPlayerResponseCallback = this.debounce(() => {
+      this.currentPlayer = Math.max(this.currentPlayer - 1, 0);
+      setGameCard();
+      this.showHideNextPrev(nextBtn, prevBtn, responses.length - 1);
+      this.send("preview-response", this.currentPlayer);
+    });
+    prevBtn.addEventListener("click", this.gameCard.prevPlayerResponseCallback);
+
+    // Submit Winner Button
+    this.submitWinner.clickCallback = this.debounce(() => {
+      const winningPlayer = responses[this.currentPlayer];
+      const onCleanup = () => {
+        czarControls.forEach(c => this.show(c));
+        this.showHideNextPrev(nextBtn, prevBtn, responses.length - 1);
+      };
+      czarControls.forEach(c => this.hide(c));
+      this.confirm(() => this.send("choose-winner", winningPlayer._id), "Confirm this card?", onCleanup);
+    });
+    this.submitWinner.addEventListener("click", this.submitWinner.clickCallback);
+
+    this.showHideNextPrev(nextBtn, prevBtn, responses.length - 1);
   }
   seededShuffle(array, seed) {
     let currentIndex = array.length, randomIndex;
