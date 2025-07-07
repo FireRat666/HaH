@@ -1,8 +1,17 @@
-const hahCurrentScript = Array.from(document.getElementsByTagName('script')).slice(-1)[0];
-
 // --- Configuration ---
 // If you are hosting your own server, change this URL to point to it.
 const WEBSITE_DOMAIN = 'hah.firer.at';
+const SCRIPT_FILENAME = '/script.js';
+
+// --- Self-Identification ---
+// Find this script's own <script> tag to read its attributes. This is more robust than assuming it's the last script on the page, especially for dynamic injection.
+const expectedSrc = `https://${WEBSITE_DOMAIN}${SCRIPT_FILENAME}`;
+const scripts = Array.from(document.scripts);
+const hahCurrentScript = document.currentScript ||
+                         scripts.find(s => s.src === expectedSrc) ||
+                         scripts.find(s => s.src.endsWith(SCRIPT_FILENAME)) ||
+                         scripts.slice(-1)[0]; // Fallback for older browsers/edge cases
+
 const WEBSITE_URL = `https://${WEBSITE_DOMAIN}`;
 const WEBSOCKET_URL  = `wss://${WEBSITE_DOMAIN}`;
 class HahGameSystem {
