@@ -520,7 +520,7 @@ class HahGameSystem {
       this.hide(cardCzar1Container);
       this.hide(cardCzar2Container);
       blackCardContainer.setAttribute("position", "0 0 0");
-      cardCzar0.setAttribute("position", "0.31 0 0.021");
+      cardCzar0.setAttribute("position", "-0.35 0.45 0.02");
     } else if (this.isOneResponse) {
       this.hide(cardCzar2Container);
       this.show(cardCzar1Container);
