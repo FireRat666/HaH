@@ -463,7 +463,8 @@ class HahGameSystem {
     this.show(this.gameCard);
     this.currentPlayer  = game.currentPreviewResponse || 0;
     const responses = this._getShuffledResponses(players, game);
-    const areAllResponsesIn = responses.every(p => p.selected && p.selected.length >= (this.isTwoResponse ? 2 : 1));
+    // Ensure we don't get a false positive on an empty array.
+    const areAllResponsesIn = responses.length > 0 && responses.every(p => p.selected && p.selected.length >= (this.isTwoResponse ? 2 : 1));
 
     this._updateCzarPreviewLayout(responses, game, areAllResponsesIn);
 
@@ -501,7 +502,7 @@ class HahGameSystem {
     const cardCzar2 = this.gameCard.querySelector("._cardCzar2");
     const cardCzar1Container = cardCzar1.parentElement;
     const cardCzar2Container = cardCzar2.parentElement;
-    const blackCardContainer = cardCzar0.previousElementSibling.previousElementSibling;
+    const blackCardContainer = this.gameCard.querySelector("._blackCardModel");
 
     this.setText(cardCzar0, game.currentBlackCard.text);
 
@@ -519,7 +520,7 @@ class HahGameSystem {
       this.hide(cardCzar1Container);
       this.hide(cardCzar2Container);
       blackCardContainer.setAttribute("position", "0 0 0");
-      cardCzar0.setAttribute("position", "-0.33 0.45 0.02");
+      cardCzar0.setAttribute("position", "0.31 0 0.021");
     } else if (this.isOneResponse) {
       this.hide(cardCzar2Container);
       this.show(cardCzar1Container);
@@ -549,6 +550,12 @@ class HahGameSystem {
     czarControls.forEach(c => this.show(c));
 
     const setGameCard = () => {
+      if (responses[this.currentPlayer]) {
+        const currentResponse = responses[this.currentPlayer];
+        this.setText(this.gameCard.querySelector("._cardCzar1"), currentResponse.selected[0]?.text || "");
+        if (this.isTwoResponse) {
+          this.setText(this.gameCard.querySelector("._cardCzar2"), currentResponse.selected[1]?.text || "");
+        }
       }
     };
 
@@ -851,7 +858,7 @@ class HahGameSystem {
         
         <a-entity position="0 2 0" class="_gameCard"  visible="false">
           <a-entity sq-billboard look-at="[camera]">
-            <a-entity gltf-model="${WEBSITE_URL}/Assets/card%20(1).glb" scale="12.8 12.8 12.8" position="0 0 0" rotation="-90 0 0"></a-entity>
+            <a-entity class="_blackCardModel" gltf-model="${WEBSITE_URL}/Assets/card%20(1).glb" scale="12.8 12.8 12.8" position="0 0 0" rotation="-90 0 0"></a-entity>
             <a-text class="_cardCzar0" baseline="top" value="-" scale="0.3 0.3 0.3" rotation="0 0 0" position="0.31 0 0.021"></a-text>
             <a-plane position="0 0 0" scale="0.75 1.125 0.75" color="#afafaf" rotation="0 0 0" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" visible="false">
               <a-text class="_cardCzar1" color="#000" baseline="top" value="-" scale="0.375 0.25 0.375" position="-0.4 0.4 0.01"></a-text>
