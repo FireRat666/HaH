@@ -1,27 +1,44 @@
 // --- Configuration ---
+const IS_LOCAL_DEV = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+// When running locally, it will connect to the server on the same host.
+// When deployed, it will connect to the production domain.
 // If you are hosting your own server, change this URL to point to it.
-const WEBSITE_DOMAIN = 'hah.firer.at';
+const WEBSITE_DOMAIN = IS_LOCAL_DEV ? window.location.host : 'hah.firer.at';
+const PROTOCOL = IS_LOCAL_DEV ? 'http' : 'https';
+const WS_PROTOCOL = IS_LOCAL_DEV ? 'ws' : 'wss';
+
 const SCRIPT_FILENAME = '/script.js';
 
 // --- Self-Identification ---
 // Find this script's own <script> tag to read its attributes. This is more robust than assuming it's the last script on the page, especially for dynamic injection.
-const expectedSrc = `https://${WEBSITE_DOMAIN}${SCRIPT_FILENAME}`;
+const expectedSrc = `${PROTOCOL}://${WEBSITE_DOMAIN}${SCRIPT_FILENAME}`;
 const scripts = Array.from(document.scripts);
 const hahCurrentScript = document.currentScript ||
                          scripts.find(s => s.src === expectedSrc) ||
                          scripts.find(s => s.src.endsWith(SCRIPT_FILENAME)) ||
                          scripts.slice(-1)[0]; // Fallback for older browsers/edge cases
 
-const WEBSITE_URL = `https://${WEBSITE_DOMAIN}`;
-const WEBSOCKET_URL  = `wss://${WEBSITE_DOMAIN}`;
+const WEBSITE_URL = `${PROTOCOL}://${WEBSITE_DOMAIN}`;
+const WEBSOCKET_URL  = `${WS_PROTOCOL}://${WEBSITE_DOMAIN}`;
 class HahGameSystem {
   constructor(){
+    this.MAX_SUPPORTED_RESPONSES = 5; // Define a maximum number of cards the UI can show
     this.init();
   }
+
+  log(...args) {
+    if (this.isDebug) {
+      console.log("HahGameSystem:", ...args);
+    }
+  }
+
   async init() {
+    this.playerSelections = {};
     this.currentScript = hahCurrentScript;
     this.urlParams = new URLSearchParams(window.location.search);
     this.parseParams();
+    this.log("Initializing new game system.");
     if(window.isBanter) {
       await window.AframeInjection.waitFor(window, 'user');
       await window.AframeInjection.waitFor(window, 'banterLoaded');
@@ -52,9 +69,13 @@ class HahGameSystem {
     this.setOrDefault("deck", "main");
     this.setOrDefault("debug", "false");
     this.setOrDefault("one-for-each-instance", "false");
+
+    this.isDebug = this.params.debug === 'true';
+
     if(this.params["one-for-each-instance"] === "true" && window.user && window.user.instance) {
       this.params.instance += window.user.instance;
     }
+    this.log(`Parsed params. Deck is set to: "${this.params.deck}"`);
   }
   setOrDefault(attr, defaultValue) {
     const value = this.currentScript.getAttribute(attr);
@@ -68,9 +89,9 @@ class HahGameSystem {
         const instance = this.params.instance;
         const user = window.user;
         const deck = this.params.deck;
-        const debug = this.params.debug === 'true';
-        this.send("init", {instance, user, deck, debug});
-        console.log("Connected to game server.")
+        this.log(`Sending "init" message with deck: "${deck}"`);
+        this.send("init", {instance, user, deck, debug: this.isDebug});
+        this.log("Connected to game server.");
         resolve();
       };
       this.ws.onmessage = (event) => {
@@ -79,7 +100,7 @@ class HahGameSystem {
         }
       }
       this.ws.onclose =  (event) => {
-        console.log("Connection to game server closed, reconnecting...")
+        this.log("Connection to game server closed, reconnecting...");
         setTimeout(() => {
           this.setupWebsocket();
         }, 1000);
@@ -106,16 +127,16 @@ class HahGameSystem {
     this.mainCTAJoinButton.addEventListener('click', this.debounce(() => {
       if(this.canStart){
         this.send('start-game');
-        console.log("Starting game...");
+        this.log("Starting game...");
       }else {
         this.send('join-game');
-        console.log("Joining game...");
+        this.log("Joining game...");
       }
     }));
     this.leaveGame.addEventListener('click', this.debounce(() => {
       this.confirm(() => {
         this.send('leave-game');
-      })
+      }, "Leave game?", { hideAllUI: true });
     })); 
     if(window.isBanter) {
       Array.from(this.parent.querySelector("[look-at]")).forEach(ele => {
@@ -123,18 +144,53 @@ class HahGameSystem {
       });
     }
   }
-  confirm(callback, message = "Are you sure?", onCleanup) {
+  confirm(callback, message = "Are you sure?", optionsOrOnCleanup = {}) {
+    let onCleanup, hideAllUI;
+
+    if (typeof optionsOrOnCleanup === 'function') {
+      onCleanup = optionsOrOnCleanup;
+      hideAllUI = false;
+    } else {
+      onCleanup = optionsOrOnCleanup.onCleanup;
+      hideAllUI = optionsOrOnCleanup.hideAllUI;
+    }
+
     const areYouSureText = this.areYouSure.querySelector("a-text");
     this.setText(areYouSureText, message);
     this.areYouSure.setAttribute("scale", "1 1 1");
 
     let confirmHandler, cancelHandler;
 
+    // If requested, hide all major UI elements to prevent overlap.
+    if (hideAllUI) {
+      this.hide(this.gameCard);
+      this.hide(this.startCard);
+      // Also hide the player's own card area if they are playing
+      const userPlayer = this.game?.players[window.user?.id];
+      if (userPlayer && this.userIsPlaying) {
+        const playerSection = this.parent.querySelector(`._playerPosition${userPlayer.position}`);
+        if (playerSection) {
+          this.hide(playerSection.querySelector("._cardRoot"));
+          this.hide(playerSection.querySelector("._cardSelection"));
+          const reset = playerSection.querySelector("._resetCardSelection");
+          const submit = playerSection.querySelector("._submitCardSelection");
+          if (reset) this.hide(reset.parentElement);
+          if (submit) this.hide(submit.parentElement);
+        }
+      }
+    }
+
     const cleanup = () => {
       this.areYouSure.setAttribute("scale", "0 0 0");
       this.confirmButton.removeEventListener("click", confirmHandler);
       this.cancelButton.removeEventListener("click", cancelHandler);
       this.setText(areYouSureText, "Are you sure?"); // Reset for next use
+
+      // If we hid the main UI, restore it by re-syncing the game state.
+      if (hideAllUI) {
+        this.syncGame(this.game);
+      }
+
       if (onCleanup) onCleanup();
     };
 
@@ -142,75 +198,76 @@ class HahGameSystem {
       callback();
       cleanup();
     };
-    cancelHandler = () => cleanup();
+    cancelHandler = () => {
+      cleanup();
+    };
 
     this.confirmButton.addEventListener("click", confirmHandler);
     this.cancelButton.addEventListener("click", cancelHandler);
   }
-  shouldShowSubmit() {
-    return (this.firstCardSelection && this.isOneResponse) || (this.isTwoResponse && this.firstCardSelection && this.secondCardSelection);
-  }
-  shouldShowReset() {
-    return this.firstCardSelection;
-  }
-  selectIndividualCard(cardele, submit, reset, playerSection, cardSelection0, cardSelection1) {
-    if(this.hasSubmit || (this.firstCardSelection && this.secondCardSelection && this.isTwoResponse) || (this.firstCardSelection && this.isOneResponse)) {
+  selectIndividualCard(cardele, submit, reset, playerSection) {
+    const numResponsesRequired = this.game.currentBlackCard?.numResponses || 1;
+    const playerSelectionState = this.playerSelections[window.user.id];
+
+    if (this.hasSubmit || !playerSelectionState || playerSelectionState.selectedCardElements.length >= numResponsesRequired) {
       return;
     }
+
+    // Hide the card from the hand and add it to our selection list
     cardele.setAttribute("scale", "0 0 0");
-    if(this.firstCardSelection) {
-      this.secondCardSelection = cardele;
-      this.setText(cardSelection1.querySelector("a-text"), cardele.card.text);
-      this.show(cardSelection1);
-      this.show(cardSelection0); // Ensure first card preview remains visible
-    }else{
-      this.show(cardSelection0);
-      this.firstCardSelection = cardele;
-      this.setText(cardSelection0.querySelector("a-text"), cardele.card.text);
-      this.show(reset.parentElement);
+    playerSelectionState.selectedCardElements.push(cardele);
+
+    // Update the preview slots
+    playerSelectionState.selectedCardElements.forEach((selectedCard, index) => {
+      const previewSlot = playerSelectionState.previewElements[index];
+      if (previewSlot) {
+        this.setText(previewSlot.querySelector("a-text"), selectedCard.card.text);
+        this.show(previewSlot);
+      }
+    });
+
+    // Show/hide controls based on the new state
+    this.show(reset.parentElement);
+    if (playerSelectionState.selectedCardElements.length === numResponsesRequired) {
+      this.show(submit.parentElement);
     }
 
     if(playerSection.submitCallback) {
       submit.removeEventListener("click", playerSection.submitCallback);
     }
-    playerSection.submitCallback = this.debounce(() => this.chooseCards(submit, reset, playerSection, cardSelection0, cardSelection1));
+    playerSection.submitCallback = this.debounce(() => this.chooseCards(submit, reset, playerSection));
     submit.addEventListener("click", playerSection.submitCallback);
-    if(this.shouldShowSubmit()) {
-      this.show(submit.parentElement);
-    }
   }
-  chooseCards(submit, reset, playerSection, cardSelection0, cardSelection1) {
-    if((this.firstCardSelection && this.isOneResponse) || (this.isTwoResponse && this.firstCardSelection && this.secondCardSelection)) {
-      // The card elements are already hidden from the hand by `selectIndividualCard`.
-      this.send("choose-cards", [this.firstCardSelection.card, this.secondCardSelection ? this.secondCardSelection.card : null]);
-      
-      // Optimistically clear the selection area and hide controls for instant feedback.
-      this.setText(cardSelection0.querySelector("a-text"), "-");
-      this.setText(cardSelection1.querySelector("a-text"), "-");
-      this.hide(submit.parentElement);
-      this.hide(reset.parentElement);
-      this.hide(cardSelection0);
-      this.hide(cardSelection1);
-      this.firstCardSelection = null;
-      this.secondCardSelection = null;
-      this.hasSubmit = true;
-    }
-  }
-  resetChoice(submit, reset, playerSection, cardSelection0, cardSelection1) {
-    for(let _i = 0;_i < 12; _i ++) {
-        const cardEle = playerSection.querySelector('._card' + _i);
-        if(cardEle === this.firstCardSelection || cardEle === this.secondCardSelection) {
-          cardEle.setAttribute("scale", "0.1 0.15 0.1");
-        }
-    }
-    this.secondCardSelection = null;
-    this.firstCardSelection = null;
-    this.setText(cardSelection0.querySelector("a-text"), "-");
-    this.setText(cardSelection1.querySelector("a-text"), "-");
+  chooseCards(submit, reset, playerSection) {
+    const playerSelectionState = this.playerSelections[window.user.id];
+    const cardsToSend = playerSelectionState.selectedCardElements.map(el => el.card);
+    this.send("choose-cards", cardsToSend);
+
+    // Optimistically hide controls. The server sync will handle clearing the preview.
+    playerSelectionState.previewElements.forEach(previewSlot => {
+      this.setText(previewSlot.querySelector("a-text"), "-");
+      this.hide(previewSlot);
+    });
     this.hide(submit.parentElement);
     this.hide(reset.parentElement);
-    this.hide(cardSelection0);
-    this.hide(cardSelection1);
+    this.hasSubmit = true;
+  }
+  resetChoice(submit, reset, playerSection) {
+    const playerSelectionState = this.playerSelections[window.user.id];
+    if (!playerSelectionState) return;
+
+    // Return the selected cards to the hand visually
+    playerSelectionState.selectedCardElements.forEach(cardEle => {
+      cardEle.setAttribute("scale", "0.1 0.15 0.1");
+    });
+
+    // Clear the internal selection state
+    playerSelectionState.selectedCardElements = [];
+
+    // Hide the preview slots and controls
+    playerSelectionState.previewElements.forEach(previewSlot => this.hide(previewSlot));
+    this.hide(submit.parentElement);
+    this.hide(reset.parentElement);
   }
   showTrophies(player, trophiesEl) {
     if(player.trophies > trophiesEl.children.length) {
@@ -232,14 +289,13 @@ class HahGameSystem {
       const playerSection = this.parent.querySelector("._playerPosition" + i);
       const reset = playerSection.querySelector("._resetCardSelection");
       const submit = playerSection.querySelector("._submitCardSelection");
-      const cardSelection = playerSection.querySelector("._cardSelection");
-      const cardSelection0 = cardSelection.querySelector("._cardSelection0");
-      const cardSelection1 = cardSelection.querySelector("._cardSelection1");
       const dumpHandContainer = playerSection.querySelector("._dumpHandContainer");
       const dumpHandButton = playerSection.querySelector("._dumpHandButton");
       const playerStatusText = playerSection.querySelector("._playerStatus");
-      this.hide(cardSelection0);
-      this.hide(cardSelection1);
+      
+      // Hide all preview slots by default
+      Array.from(playerSection.querySelectorAll("._cardSelection > a-plane")).forEach(slot => this.hide(slot));
+
       this.hide(submit.parentElement);
       this.hide(reset.parentElement);
       if(!playerId.length) {
@@ -279,8 +335,16 @@ class HahGameSystem {
       }
       if(game.isStarted){
         if(id === window.user.id && id !== game.czar) {
+          // Initialize or reset selection state for the player for this round
+          if (!this.playerSelections[id] || this.hasSubmit) {
+            this.log(`Initializing selection state for player ${id}`);
+            this.playerSelections[id] = {
+              selectedCardElements: [],
+              previewElements: Array.from({ length: this.MAX_SUPPORTED_RESPONSES }, (_, j) => playerSection.querySelector(`._cardSelection${j}`))
+            };
+          }
           if(!playerSection.resetCallback) {
-            playerSection.resetCallback = this.debounce(() => this.resetChoice(submit, reset, playerSection, cardSelection0, cardSelection1));
+            playerSection.resetCallback = this.debounce(() => this.resetChoice(submit, reset, playerSection));
             reset.addEventListener("click", playerSection.resetCallback);
           }
           // --- New, smarter hand update logic ---
@@ -305,7 +369,7 @@ class HahGameSystem {
               slot.card = cardToAdd;
               this.setText(slot.querySelector("a-text"), cardToAdd.text);
               slot.setAttribute("scale", "0.1 0.15 0.1");
-              slot.clickCallback = this.debounce(() => this.selectIndividualCard(slot, submit, reset, playerSection, cardSelection0, cardSelection1));
+              slot.clickCallback = this.debounce(() => this.selectIndividualCard(slot, submit, reset, playerSection));
               slot.addEventListener("click", slot.clickCallback);
             } else {
               slot.card = null;
@@ -315,11 +379,34 @@ class HahGameSystem {
           });
           // --- End of new logic ---
 
-          if(this.shouldShowSubmit() && !player.selected.length) {
-            this.show(submit.parentElement);
-          }
-          if(this.shouldShowReset() && !player.selected.length) {
-            this.show(reset.parentElement);
+          // Restore button visibility and card previews based on local selection state if the player hasn't submitted yet.
+          const playerSelectionState = this.playerSelections[id];
+          if (playerSelectionState && !player.selected.length) {
+            // Re-display the previewed cards from the local state. The main hand sync logic
+            // might have re-shown the card in the hand, so we need to hide it again here.
+
+              // Ensure the parent container for previews is visible, as it might have been hidden by the confirm dialog.
+              const previewContainer = playerSection.querySelector("._cardSelection");
+              if (previewContainer) this.show(previewContainer);
+
+
+            playerSelectionState.selectedCardElements.forEach((selectedCardElement, index) => {
+              const previewSlot = playerSelectionState.previewElements[index];
+              if (previewSlot) {
+                this.setText(previewSlot.querySelector("a-text"), selectedCardElement.card.text);
+                this.show(previewSlot);
+              }
+              // Explicitly hide the card from the hand, as the sync logic would have re-shown it.
+              selectedCardElement.setAttribute("scale", "0 0 0");
+            });
+
+            const numResponsesRequired = game.currentBlackCard?.numResponses || 1;
+            if (playerSelectionState.selectedCardElements.length > 0) {
+              this.show(reset.parentElement);
+            }
+            if (playerSelectionState.selectedCardElements.length === numResponsesRequired) {
+              this.show(submit.parentElement);
+            }
           }
 
           if (game.isStarted && !game.winner && !player.hasRequestedHandDumpThisRound) {
@@ -328,7 +415,8 @@ class HahGameSystem {
               dumpHandButton.clickCallback = this.debounce(() => {
                 this.confirm(
                   () => { this.send('dump-hand'); },
-                  "Discard hand?"
+                  "Discard hand?",
+                  { hideAllUI: true }
                 );
               });
               dumpHandButton.addEventListener('click', dumpHandButton.clickCallback);
@@ -378,34 +466,45 @@ class HahGameSystem {
     }
   }
   resetGame() {
+    // Dynamically find and reset all czar response cards
+    for (let i = 0; i < this.MAX_SUPPORTED_RESPONSES; i++) {
+      const cardContainer = this.gameCard.querySelector(`._czarResponseCardContainer${i}`);
+      if (cardContainer) {
+        this.hide(cardContainer);
+        const textElement = cardContainer.querySelector(`._cardCzar${i + 1}`);
+        if (textElement) this.setText(textElement, "-");
+      }
+    }
     const cardCzar0 = this.gameCard.querySelector("._cardCzar0");
-    const cardCzar1 = this.gameCard.querySelector("._cardCzar1");
-    const cardCzar2 = this.gameCard.querySelector("._cardCzar2");
-    this.hide(cardCzar1.parentElement);
-    this.hide(cardCzar2.parentElement);
-    this.setText(cardCzar1, "-");
-    this.setText(cardCzar2, "-");
     this.setText(cardCzar0, "-");
     cardCzar0.previousSibling.previousSibling.setAttribute("position", "0 0 0");
     cardCzar0.setAttribute("position", "0.33 0.45 -0.02");
-    this.firstCardSelection = null;
-    this.secondCardSelection = null;
+
+    // Reset player-specific state
+    this.playerSelections = {};
     this.hasSubmit = false;
+
+    // Reset all player slices in the DOM
     for(let i = 0;i < 10; i ++) {
       const playerSection = this.parent.querySelector("._playerPosition" + i);
-      const cardSelection = playerSection.querySelector("._cardSelection");
-      const cardSelection0 = cardSelection.querySelector("._cardSelection0");
-      const cardSelection1 = cardSelection.querySelector("._cardSelection1");
+      if (!playerSection) continue;
+
+      // Hide all player-side preview slots
+      Array.from(playerSection.querySelectorAll("._cardSelection > a-plane")).forEach(slot => {
+        const textElement = slot.querySelector("a-text");
+        if (textElement) this.setText(textElement, "-");
+        this.hide(slot);
+      });
+
       const reset = playerSection.querySelector("._resetCardSelection");
       const submit = playerSection.querySelector("._submitCardSelection");
-      this.setText(cardSelection0.querySelector("a-text"), "-");
-      this.setText(cardSelection1.querySelector("a-text"), "-");
-      this.hide(cardSelection0);
-      this.hide(cardSelection1);
       this.hide(submit.parentElement);
       this.hide(reset.parentElement);
+
+      // Reset hand cards
       for(let _i = 0;_i < 12; _i ++) {
         const cardEle = playerSection.querySelector('._card' + _i);
+        if (!cardEle) continue;
         cardEle.card = null;
         this.setText(cardEle.querySelector("a-text"), "-");
         if(cardEle.clickCallback) {
@@ -444,6 +543,8 @@ class HahGameSystem {
       this.hide(this.startCard);
       value = "Waiting for next round...";
     }else{
+      this.show(this.startCard);
+      this.show(this.startPreviewCard);
       this.show(this.mainCTAJoinButton);
       if(game.isStarted) {
         this.hide(this.startPreviewCard);
@@ -459,17 +560,20 @@ class HahGameSystem {
   czarPreviewAndSelect(players, game) {
     if (!game.showBlack || game.winner) {
       this.hide(this.gameCard);
+      this.log("Hiding game card, showBlack:", game.showBlack, "winner:", game.winner);
       return;
     }
 
     this.show(this.gameCard);
     this.currentPlayer  = game.currentPreviewResponse || 0;
     const responses = this._getShuffledResponses(players, game);
+    const numResponsesRequired = game.currentBlackCard?.numResponses || 1;
     // Ensure we don't get a false positive on an empty array.
-    const areAllResponsesIn = responses.length > 0 && responses.every(p => p.selected && p.selected.length >= (this.isTwoResponse ? 2 : 1));
+    this.log("Czar Preview - currentPreviewResponse:", game.currentPreviewResponse, "responses.length", responses.length);
+    const areAllResponsesIn = responses.length > 0 && responses.every(p => p.selected && p.selected.length >= numResponsesRequired);
 
     this._updateCzarPreviewLayout(responses, game, areAllResponsesIn);
-
+    
     if (window.user.id === game.czar) {
       this._bindCzarPreviewControls(responses, areAllResponsesIn);
     } else {
@@ -499,44 +603,59 @@ class HahGameSystem {
     return gamePlayersWithoutCzar;
   }
   _updateCzarPreviewLayout(responses, game, areAllResponsesIn) {
+    const numResponsesRequired = game.currentBlackCard?.numResponses || 1;
     const cardCzar0 = this.gameCard.querySelector("._cardCzar0");
-    const cardCzar1 = this.gameCard.querySelector("._cardCzar1");
-    const cardCzar2 = this.gameCard.querySelector("._cardCzar2");
-    const cardCzar1Container = cardCzar1.parentElement;
-    const cardCzar2Container = cardCzar2.parentElement;
     const blackCardContainer = this.gameCard.querySelector("._blackCardModel");
+    // Get all response card containers dynamically
+    const responseCardContainers = Array.from({ length: this.MAX_SUPPORTED_RESPONSES }, (_, i) => this.gameCard.querySelector(`._czarResponseCardContainer${i}`));
+    const responseCardTextElements = Array.from({ length: this.MAX_SUPPORTED_RESPONSES }, (_, i) => this.gameCard.querySelector(`._cardCzar${i + 1}`));
 
     this.setText(cardCzar0, game.currentBlackCard.text);
 
-    const setGameCard = () => {
-      if (areAllResponsesIn && responses[this.currentPlayer]) {
-        const currentResponse = responses[this.currentPlayer];
-        this.setText(cardCzar1, currentResponse.selected[0]?.text || "");
-        if (this.isTwoResponse) {
-          this.setText(cardCzar2, currentResponse.selected[1]?.text || "");
-        }
-      }
-    };
-
     if (!areAllResponsesIn) {
-      this.hide(cardCzar1Container);
-      this.hide(cardCzar2Container);
+      // Hide all response cards and center the black card
+      responseCardContainers.forEach(c => c && this.hide(c));
       blackCardContainer.setAttribute("position", "0 0 0");
       cardCzar0.setAttribute("position", "-0.35 0.45 0.02");
-    } else if (this.isOneResponse) {
-      this.hide(cardCzar2Container);
-      this.show(cardCzar1Container);
-      cardCzar1Container.setAttribute("position", "0.4 0 0");
-      blackCardContainer.setAttribute("position", "-0.4 0 0");
-      cardCzar0.setAttribute("position", "-0.73 0.45 0.02");
-      setGameCard();
-    } else { // isTwoResponse
-      this.show(cardCzar1Container);
-      this.show(cardCzar2Container);
-      cardCzar1Container.setAttribute("position", "0 0 0");
-      blackCardContainer.setAttribute("position", "-0.82 0 0");
-      cardCzar0.setAttribute("position", "-1.13 0.45 0.02");
-      setGameCard();
+      this.log("Not all responses in, hiding response cards.");
+    } else {
+      // Dynamic layout for black card and response cards
+      const cardWidth = 0.8; // Approximate width of a card container
+      const totalWidth = (numResponsesRequired + 1) * cardWidth;
+      const startX = -totalWidth / 2 + cardWidth / 2;
+
+      // Position black card
+      const blackCardX = startX;
+      blackCardContainer.setAttribute("position", `${blackCardX} 0 0`);
+      cardCzar0.setAttribute("position", `${blackCardX - 0.33} 0.45 0.02`);
+
+      // Position response cards
+      responseCardContainers.forEach((container, index) => {
+        if (!container) return;
+        if (index < numResponsesRequired) {
+          const responseCardX = startX + (index + 1) * cardWidth;
+          container.setAttribute("position", `${responseCardX} 0 0`);
+          this.show(container);
+        } else {
+          this.hide(container);
+        }
+      });
+
+      // Update the text of the response cards for the currently previewed response
+      const currentResponse = responses[this.currentPlayer];
+      responseCardTextElements.forEach((textElement, index) => {
+        if (textElement) {
+          const cardText = currentResponse?.selected[index]?.text || "";
+          this.log(`Setting cardCzar${index + 1} text to:`, cardText);
+          this.setText(textElement, cardText);
+        }
+      });
+      this.log("All responses in, updating response card positions.");
+
+      // Also update the next/prev button visibility based on the current state
+      const prevBtn = this.gameCard.querySelector("._prevPlayerResponse");
+      const nextBtn = this.gameCard.querySelector("._nextPlayerResponse");
+      this.showHideNextPrev(nextBtn, prevBtn, responses.length - 1);
     }
   }
   _bindCzarPreviewControls(responses, areAllResponsesIn) {
@@ -551,16 +670,6 @@ class HahGameSystem {
 
     czarControls.forEach(c => this.show(c));
 
-    const setGameCard = () => {
-      if (responses[this.currentPlayer]) {
-        const currentResponse = responses[this.currentPlayer];
-        this.setText(this.gameCard.querySelector("._cardCzar1"), currentResponse.selected[0]?.text || "");
-        if (this.isTwoResponse) {
-          this.setText(this.gameCard.querySelector("._cardCzar2"), currentResponse.selected[1]?.text || "");
-        }
-      }
-    };
-
     // Cleanup old listeners to prevent memory leaks and double-firing
     if (this.gameCard.nextPlayerResponseCallback) nextBtn.removeEventListener("click", this.gameCard.nextPlayerResponseCallback);
     if (this.gameCard.prevPlayerResponseCallback) prevBtn.removeEventListener("click", this.gameCard.prevPlayerResponseCallback);
@@ -569,8 +678,6 @@ class HahGameSystem {
     // Next Button
     this.gameCard.nextPlayerResponseCallback = this.debounce(() => {
       this.currentPlayer = Math.min(this.currentPlayer + 1, responses.length - 1);
-      setGameCard();
-      this.showHideNextPrev(nextBtn, prevBtn, responses.length - 1);
       this.send("preview-response", this.currentPlayer);
     });
     nextBtn.addEventListener("click", this.gameCard.nextPlayerResponseCallback);
@@ -578,8 +685,6 @@ class HahGameSystem {
     // Previous Button
     this.gameCard.prevPlayerResponseCallback = this.debounce(() => {
       this.currentPlayer = Math.max(this.currentPlayer - 1, 0);
-      setGameCard();
-      this.showHideNextPrev(nextBtn, prevBtn, responses.length - 1);
       this.send("preview-response", this.currentPlayer);
     });
     prevBtn.addEventListener("click", this.gameCard.prevPlayerResponseCallback);
@@ -595,8 +700,6 @@ class HahGameSystem {
       this.confirm(() => this.send("choose-winner", winningPlayer._id), "Confirm this card?", onCleanup);
     });
     this.submitWinner.addEventListener("click", this.submitWinner.clickCallback);
-
-    this.showHideNextPrev(nextBtn, prevBtn, responses.length - 1);
   }
   seededShuffle(array, seed) {
     let currentIndex = array.length, randomIndex;
@@ -663,12 +766,9 @@ class HahGameSystem {
       this.cleanUpTrophies(game);
     }
     
+    this.log("syncGame: New game state received", game);
     this.game = game;
     this.canStart = false;
-    
-    if(this.params.debug === "true") {
-      console.log("sync", game);
-    }
     
     if(!game.winner && this.hadWinner) {
       this.resetGame();
@@ -684,14 +784,6 @@ class HahGameSystem {
       this.leaveGame.setAttribute("scale", "0 0 0");
     }
     this.userIsWaiting = game.waitingRoom.map(d => d.id).indexOf(window.user.id) > -1;
-    
-    this.isOneResponse = game.isStarted && game.currentBlackCard && (!game.currentBlackCard.numResponses || game.currentBlackCard.numResponses === 1);
-    this.isTwoResponse = game.isStarted && game.currentBlackCard && game.currentBlackCard.numResponses && game.currentBlackCard.numResponses === 2;
-    
-    this.show(this.startCard);
-    this.show(this.startPreviewCard);
-    this.hide(this.gameCard);
-    this.gameBox.setAttribute("rotation", "-180 0 0");
     
     this.centerTableState(game);
     this.updatePlayerSlices(players, game);
@@ -755,14 +847,12 @@ class HahGameSystem {
       trophy: `${WEBSITE_URL}/Assets/ha_h__trophy.glb`
     }
     
-    const czarSelectHtml = `
-    <a-entity class="_cardSelection">
-      <a-plane visible="false" class="_cardSelection0" position="0.25 1.6 -1.3" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 180 0">
+    const czarSelectHtml = `<a-entity class="_cardSelection">
+      ${Array.from({ length: this.MAX_SUPPORTED_RESPONSES }, (_, i) => `
+        <a-plane visible="false" class="_cardSelection${i}" position="${0.25 - i * 0.11} 1.65 -1.3" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 180 0">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
-        </a-plane>  
-      <a-plane visible="false" class="_cardSelection1"  position="0.05 1.6 -1.3" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 180 0" >
-          <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.4 0.4 0.01"></a-text>
-        </a-plane>  
+        </a-plane>
+      `).join('')}
     </a-entity>`;
     
     const czarCardHtml = `
@@ -862,12 +952,11 @@ class HahGameSystem {
           <a-entity sq-billboard look-at="[camera]">
             <a-entity class="_blackCardModel" gltf-model="${WEBSITE_URL}/Assets/card%20(1).glb" scale="12.8 12.8 12.8" position="0 0 0" rotation="-90 0 0"></a-entity>
             <a-text class="_cardCzar0" baseline="top" value="-" scale="0.3 0.3 0.3" rotation="0 0 0" position="0.31 0 0.021"></a-text>
-            <a-plane position="0 0 0" scale="0.75 1.125 0.75" color="#FFF" rotation="0 0 0" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" visible="false">
-              <a-text class="_cardCzar1" color="#000" baseline="top" value="-" scale="0.375 0.25 0.375" position="-0.4 0.4 0.01"></a-text>
-            </a-plane>
-            <a-plane position="0.8 0 0" scale="0.75 1.125 0.75" color="#FFF" rotation="0 0 0" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" visible="false">
-              <a-text class="_cardCzar2" color="#000" baseline="top" value="-" scale="0.375 0.25 0.375" position="-0.4 0.4 0.01"></a-text>
-            </a-plane>
+            ${Array.from({ length: this.MAX_SUPPORTED_RESPONSES }, (_, i) => `
+              <a-plane class="_czarResponseCardContainer${i}" position="0 0 0" scale="0.75 1.125 0.75" color="#FFF" rotation="0 0 0" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" visible="false">
+                <a-text class="_cardCzar${i + 1}" color="#000" baseline="top" value="-" scale="0.375 0.25 0.375" position="-0.4 0.4 0.01"></a-text>
+              </a-plane>
+            `).join('')}
           </a-entity>
           
           <a-entity sq-billboard look-at="[camera]" position="0 -0.7 0">          

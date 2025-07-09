@@ -17,6 +17,7 @@ const logger = winston.createLogger({
   ),
   transports: [
     new winston.transports.Console(),
+    new winston.transports.File({ filename: 'server.log' })
   ],
 });
 
@@ -154,7 +155,7 @@ class GameServer{
         break;
       case "reset-game": 
         const game = await this.getOrCreateGame(ws);
-        this.resetGame(ws, game, true);
+        await this.resetGame(ws, game, true);
         this.syncGame(game);
         break;
     } 
@@ -205,7 +206,7 @@ class GameServer{
       await this.removePlayer(ws);
     }
   }
-  resetGame(ws, game, hardReset) {
+  async resetGame(ws, game, hardReset) {
     const players = Object.keys(game.players);
     const allSelectedCards = players.flatMap(playerId => {
       const player = game.players[playerId];
@@ -219,6 +220,9 @@ class GameServer{
     game.winner = null;
     game.isStarted = false;
     if(hardReset) {
+      logger.info(`Game instance "${ws.i}" is being hard-reset by ${ws.u.name} with deck: ${ws.deckName}`);
+      const newDeck = await this.getDeck(ws.deckName);
+      game.originalDeck = newDeck;
       game.czar = ""
       game.players = {};
       game.waitingRoom = [];
@@ -389,6 +393,15 @@ class GameServer{
       this.send(ws, "error", "This game is full, please try again later!");
       return;
     }
+
+    // If a player is already in the game (active or waiting), ignore the join request.
+    // This prevents them from being re-added, which would change their position and cause confusion.
+    if (game.players[ws.u.id] || game.waitingRoom.some(p => p.id === ws.u.id)) {
+      logger.info(`Player ${ws.u.name} (${ws.u.id}) tried to join but is already in the game. Syncing state instead.`);
+      this.syncGame(game, ws);
+      return; // Stop further processing
+    }
+
     if(game.isStarted) {
       if(!game.waitingRoom.filter(d => d.id === ws.u.id).length) {
         game.waitingRoom.push(ws.u);
@@ -435,24 +448,38 @@ class GameServer{
     try {
       let deckData;
       if (deckIdentifier.startsWith('http')) {
+        logger.info(`Deck identifier "${deckIdentifier}" is a URL. Fetching...`);
         const response = await axios.get(deckIdentifier);
         deckData = response.data;
       } else {
+        logger.info(`Deck identifier "${deckIdentifier}" is a local file name.`);
+        // Sanitize to prevent path traversal and get the base name.
         const safeDeckName = path.basename(deckIdentifier);
-        const deckPath = path.join(__dirname, 'decks', `${safeDeckName}.json`);
+        // Remove .json extension if it exists to avoid duplication, then re-add it.
+        const baseName = safeDeckName.endsWith('.json') ? safeDeckName.slice(0, -5) : safeDeckName;
+        const deckPath = path.join(__dirname, 'decks', `${baseName}.json`);
+        logger.info(`Attempting to read local deck file from: ${deckPath}`);
         const fileContent = await fs.readFile(deckPath, 'utf8');
         deckData = JSON.parse(fileContent);
       }
  
       const processedDeck = processDeck(deckData);
       if (processedDeck) {
-        logger.info(`Successfully loaded and processed deck: ${deckIdentifier}`);
+        logger.info(`Successfully loaded and processed deck: "${deckIdentifier}"`);
         return processedDeck;
       }
       throw new Error("Invalid deck format.");
     } catch (error) {
-      logger.warn(`Failed to load deck "${deckIdentifier}": ${error.message}. Falling back to the main deck.`);
+      logger.warn(`Failed to load deck "${deckIdentifier}". Error: ${error.message}`);
+      if (error.code === 'ENOENT') {
+        logger.warn(`The file was not found at the specified path. Please ensure the deck file exists.`);
+      }
+      if (error instanceof SyntaxError) {
+        logger.warn(`This is likely a JSON syntax error in the deck file (e.g., a trailing comma). Please validate the file.`);
+      }
+      logger.warn(`Falling back to the main deck.`);
       const fallbackPath = path.join(__dirname, 'decks', 'main.json');
+      logger.info(`Loading fallback deck from: ${fallbackPath}`);
       const fileContent = await fs.readFile(fallbackPath, 'utf8');
       const fallbackDeckData = JSON.parse(fileContent);
       return processDeck(fallbackDeckData);
