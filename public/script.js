@@ -898,7 +898,7 @@ class HahGameSystem {
         </a-plane>
         <a-plane data-raycastable sq-collider sq-interactable class="_card3" position="-0.055 0 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 3">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01"></a-text>
-        </a-plane>sd
+        </a-plane>
         <a-plane data-raycastable sq-collider sq-interactable class="_card4" position="-0.16 -0.015 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 6">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01"></a-text>
         </a-plane>
