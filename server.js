@@ -7,6 +7,12 @@ const axios = require('axios');
 const cors = require('cors');
 const fs = require('fs').promises;
 
+// --- Configuration ---
+// Timeout in seconds before a disconnected player is removed from the game.
+const DISCONNECT_TIMEOUT_SECONDS = 45;
+// Timeout in seconds before an idle player (or czar) is removed for inactivity.
+const IDLE_TIMEOUT_SECONDS = 90;
+
 const logger = winston.createLogger({
   level: 'info',
   format: winston.format.combine(
@@ -108,13 +114,13 @@ class GameServer{
       if(ws.u && game.players[ws.u.id]) {
         game.players[ws.u.id].connected = false;
         game.players[ws.u.id].disconnectTime = new Date().getTime();
-        logger.info(`Player ${name} will be kicked in 45 seconds for inactivity.`);
-        game.players[ws.u.id].kickTimeout = setTimeout(() =>{
+        logger.info(`Player ${name} will be kicked in ${DISCONNECT_TIMEOUT_SECONDS} seconds for inactivity.`);
+        game.players[ws.u.id].disconnectKickTimeout = setTimeout(() =>{
           if(!game.players[ws.u.id] || !game.players[ws.u.id].connected) {
             logger.info(`${name} kicked for inactivity.`);
             this.removePlayer(ws);
           }
-        }, 1000 * 45);
+        }, 1000 * DISCONNECT_TIMEOUT_SECONDS);
         this.syncGame(game);
       } 
       if(ws.u && game.waitingRoom.map(d => d.id).indexOf(ws.u.id) > -1) { 
@@ -172,10 +178,10 @@ class GameServer{
       ws.player = game.players[ws.u.id];
       game.players[ws.u.id].connected = true;
       game.players[ws.u.id].disconnectTime = 0;
-      if(game.players[ws.u.id].kickTimeout) {
+      if(game.players[ws.u.id].disconnectKickTimeout) {
         logger.info(`${ws.u.name} reconnected, cancelling kick timer.`);
-        clearTimeout(game.players[ws.u.id].kickTimeout);
-        game.players[ws.u.id].kickTimeout = null;
+        clearTimeout(game.players[ws.u.id].disconnectKickTimeout);
+        game.players[ws.u.id].disconnectKickTimeout = null;
       }
     }
     this.syncGame(game);
@@ -185,6 +191,12 @@ class GameServer{
     const game = await this.getOrCreateGame(ws);
     if(game.players[ws.u.id]) {
       const player = game.players[ws.u.id];
+      if (player.disconnectKickTimeout) {
+        clearTimeout(player.disconnectKickTimeout);
+      }
+      if (player.inactivityKickTimeout) {
+        clearTimeout(player.inactivityKickTimeout);
+      }
       if (player.cards) {
         game.white.push(...player.cards.filter(c => c));
       }
@@ -208,6 +220,13 @@ class GameServer{
   }
   async resetGame(ws, game, hardReset) {
     const players = Object.keys(game.players);
+    // Clear any active inactivity timers for all players
+    players.forEach(playerId => {
+      const player = game.players[playerId];
+      if (player.inactivityKickTimeout) {
+        clearTimeout(player.inactivityKickTimeout);
+      }
+    });
     const allSelectedCards = players.flatMap(playerId => {
       const player = game.players[playerId];
       const selected = player.selected || [];
@@ -251,6 +270,14 @@ class GameServer{
   async chooseWinner(json, ws) {
     const game = await this.getOrCreateGame(ws);
     if(ws.u.id === game.czar) {
+      // Clear the czar's inactivity timer since they've acted.
+      const czarPlayer = game.players[game.czar];
+      if (czarPlayer && czarPlayer.inactivityKickTimeout) {
+        clearTimeout(czarPlayer.inactivityKickTimeout);
+        czarPlayer.inactivityKickTime = 0;
+        czarPlayer.inactivityKickTimeout = null;
+      }
+
       game.players[json.data].trophies++;
       const {_id, trophies, cards, selected, name, position, connected, disconnectTime} = game.players[json.data];
       game.winner = {_id, trophies, cards, selected, name, position, connected, disconnectTime};
@@ -297,6 +324,12 @@ class GameServer{
       return;
     }
 
+    // Clear the inactivity timer for this player since they've acted.
+    if (player.inactivityKickTimeout) {
+      clearTimeout(player.inactivityKickTimeout);
+      player.inactivityKickTime = 0;
+    }
+
     const numResponses = game.currentBlackCard.numResponses || 1;
     // Expecting an array of card objects, each with a unique _id
     const submittedCards = (json.data || []).filter(d => d && d._id);
@@ -316,6 +349,31 @@ class GameServer{
       // Move cards from hand to selected
       player.selected = submittedCards;
       player.cards = player.cards.filter(card => !submittedCardIds.includes(card._id));
+
+      const playersInGame = Object.values(game.players);
+      const nonCzarPlayers = playersInGame.filter(p => p._id !== game.czar);
+      const allPlayersHaveChosen = nonCzarPlayers.every(p => p.selected && p.selected.length > 0);
+
+      if (allPlayersHaveChosen) {
+        logger.info(`All players have chosen. Starting inactivity timer for Czar: ${game.players[game.czar].name}`);
+        // Clear timers for all non-czar players as their turn is over for this round.
+        nonCzarPlayers.forEach(p => {
+          if (p.inactivityKickTimeout) {
+            clearTimeout(p.inactivityKickTimeout);
+            p.inactivityKickTime = 0;
+          }
+        });
+
+        // Set the timer for the Czar.
+        const czarPlayer = game.players[game.czar];
+        czarPlayer.inactivityKickTime = new Date().getTime() + (1000 * IDLE_TIMEOUT_SECONDS);
+        czarPlayer.inactivityKickTimeout = setTimeout(() => {
+          if (game.players[game.czar] && !game.winner) {
+            logger.info(`Czar ${czarPlayer.name} kicked for inactivity.`);
+            this.removePlayer({ u: { id: czarPlayer._id, name: czarPlayer.name }, i: ws.i });
+          }
+        }, 1000 * IDLE_TIMEOUT_SECONDS);
+      }
 
       this.playSound(game, "card_flick.ogg");
       this.syncGame(game);
@@ -337,9 +395,11 @@ class GameServer{
         position: this.getPosition(game),
         connected:true,
         disconnectTime:0,
+        inactivityKickTime: 0,
         wantsNewHand: false,
-        hasRequestedHandDumpThisRound: false
-      }
+        hasRequestedHandDumpThisRound: false,
+        inactivityKickTimeout: null
+      };
     })
     game.waitingRoom = [];
     const players = Object.keys(game.players);
@@ -371,7 +431,23 @@ class GameServer{
       while (player.cards.length < 12 && game.white.length > 0) {
         player.cards.push(game.white.pop());
       }
-    }); 
+    });
+    // Set inactivity timers for players (not the czar)
+    players.forEach(playerId => {
+      const player = game.players[playerId];
+      // Clear any previous timer before setting a new one
+      if (player.inactivityKickTimeout) clearTimeout(player.inactivityKickTimeout);
+
+      if (playerId !== game.czar) {
+        player.inactivityKickTime = new Date().getTime() + (1000 * IDLE_TIMEOUT_SECONDS);
+        player.inactivityKickTimeout = setTimeout(() => {
+          if (game.players[playerId] && (!game.players[playerId].selected || game.players[playerId].selected.length === 0)) {
+            logger.info(`Player ${player.name} kicked for game inactivity.`);
+            this.removePlayer({ u: { id: playerId, name: player.name }, i: ws.i }); // Create a mock ws object for removePlayer
+          }
+        }, 1000 * IDLE_TIMEOUT_SECONDS);
+      }
+    });
     game.currentBlackCard = game.black.pop(); 
     game.isStarted = true;
     this.playSound(game, "gameStart.ogg");
@@ -408,7 +484,7 @@ class GameServer{
       }
     }else{      
       if(game.players[ws.u.id]) {
-        clearTimeout(game.players[ws.u.id].kickTimeout);
+        clearTimeout(game.players[ws.u.id].disconnectKickTimeout);
       }
       ws.player = game.players[ws.u.id] = {
         _id: ws.u.id,
@@ -419,8 +495,10 @@ class GameServer{
         position: this.getPosition(game),
         connected:true,
         disconnectTime:0,
+        inactivityKickTime: 0,
         wantsNewHand: false,
-        hasRequestedHandDumpThisRound: false
+        hasRequestedHandDumpThisRound: false,
+        inactivityKickTimeout: null
       };
     }
     this.playSound(game, "playerJoin.ogg");
@@ -534,9 +612,9 @@ class GameServer{
       const _players = {};
       playerIds.forEach(id => {
         const player = players[id];
-        const { _id, trophies, selected, name, position, connected, disconnectTime, wantsNewHand, hasRequestedHandDumpThisRound } = player;
+        const { _id, trophies, selected, name, position, connected, disconnectTime, wantsNewHand, hasRequestedHandDumpThisRound, inactivityKickTime } = player;
         
-        const publicPlayerView = { _id, trophies, selected, name, position, connected, disconnectTime, wantsNewHand, hasRequestedHandDumpThisRound };
+        const publicPlayerView = { _id, trophies, selected, name, position, connected, disconnectTime, wantsNewHand, hasRequestedHandDumpThisRound, inactivityKickTime };
 
         // Reveal cards if it's the owner OR if debug mode is on.
         if (id === targetPlayerId || debug) {
@@ -547,7 +625,18 @@ class GameServer{
         _players[id] = publicPlayerView;
       });
 
-      return { players: _players, playerCount, waitingRoom, czar, currentBlackCard, isStarted, showBlack, currentPreviewResponse, winner };
+      return { 
+        players: _players, 
+        playerCount, 
+        waitingRoom, 
+        czar, 
+        currentBlackCard, 
+        isStarted, 
+        showBlack, 
+        currentPreviewResponse, 
+        winner,
+        config: { disconnectTimeout: DISCONNECT_TIMEOUT_SECONDS }
+      };
     };
 
     if (ws) {

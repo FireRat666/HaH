@@ -312,18 +312,28 @@ class HahGameSystem {
       this.setText(playerSection.querySelector('._nameTag'), player.name);
       const nameTagTimer = playerSection.querySelector('._nameTagTimer');
       
-      if(!player.connected && !nameTagTimer.timer) {
-        nameTagTimer.timer = setInterval(() =>{
-          this.setText(playerSection.querySelector('._nameTagTimer'), "Disconnected, kicking in " + (45 - Math.round((new Date().getTime() - player.disconnectTime) / 1000)) + "s");
-        }, 1000);
-      }else if(player.connected && nameTagTimer.timer){
+      // Clear any existing timer interval to prevent multiple running at once
+      if (nameTagTimer.timer) {
         clearInterval(nameTagTimer.timer);
         nameTagTimer.timer = null;
-        this.setText(nameTagTimer, "");
-      }else{
-        this.setText(nameTagTimer, "");
       }
-      
+
+      if (!player.connected) {
+        nameTagTimer.timer = setInterval(() => {
+          const secondsLeft = 45 - Math.round((new Date().getTime() - player.disconnectTime) / 1000);
+          this.setText(nameTagTimer, `Disconnected, kicking in ${Math.max(0, secondsLeft)}s`);
+        }, 1000);
+      } else if (player.inactivityKickTime > 0 && !player.selected.length) {
+        nameTagTimer.timer = setInterval(() => {
+          const secondsLeft = Math.round((player.inactivityKickTime - new Date().getTime()) / 1000);
+          if (secondsLeft >= 0) {
+            this.setText(nameTagTimer, `Inactive, kicking in ${secondsLeft}s`);
+          }
+        }, 1000);
+      } else {
+        this.setText(nameTagTimer, ""); // Clear text if no timer is active
+      }
+
       if (player.wantsNewHand) {
         this.setText(playerStatusText, id === window.user.id ? "New hand pending..." : "Wants new hand");
       }
@@ -942,9 +952,9 @@ class HahGameSystem {
             <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 180 0" class="_cancel" gltf-model="${WEBSITE_URL}/Assets/ButtonS.glb"></a-entity>
             <a-plane position="0 0 0" scale="0.2 0.2 0.2" transparent="true" src="${WEBSITE_URL}/Assets/cross.png" rotation="0 0 0"></a-plane> 
           </a-entity>
-          <a-entity position="0.1 0.05 0.1" scale="0.6 0.6 0.6">
+          <a-entity position="0.1 -0.05 0.1" scale="0.6 0.6 0.6">
             <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 180 0" class="_confirm" gltf-model="${WEBSITE_URL}/Assets/ButtonS.glb"></a-entity>
-            <a-plane position="0 0 0" scale="0.2 0.2 0.2" transparent="true" src="${WEBSITE_URL}/Assets/check.png" rotation="0 0 0"></a-plane> 
+            <a-plane position="0 0 0.2" scale="0.2 0.2 0.2" transparent="true" src="${WEBSITE_URL}/Assets/check.png" rotation="0 0 0"></a-plane> 
           </a-entity>
         </a-entity>
         
