@@ -24,6 +24,7 @@ const WEBSOCKET_URL  = `${WS_PROTOCOL}://${WEBSITE_DOMAIN}`;
 class HahGameSystem {
   constructor(){
     this.MAX_SUPPORTED_RESPONSES = 5; // Define a maximum number of cards the UI can show
+    this.MaxCharsPerLine = 20; // Maximum characters per line for text wrapping
     this.newRoundWhileDialogOpen = false;
     this.init();
   }
@@ -32,6 +33,24 @@ class HahGameSystem {
     if (this.isDebug) {
       console.log("HahGameSystem:", ...args);
     }
+  }
+  
+  wrapText(text, CharsPerLine = 20) {
+    // Replace all line breaks with a space
+    text = text.replace(/[\r\n]+/g, ' ');
+    const words = text.split(' ');
+    let lines = [];
+    let currentLine = '';
+
+    for (let word of words) {
+      if ((currentLine + word).length > CharsPerLine) {
+        lines.push(currentLine.trim());
+        currentLine = '';
+      }
+      currentLine += word + ' ';
+    }
+    if (currentLine) lines.push(currentLine.trim());
+    return lines.join('\n');
   }
 
   async init() {
@@ -858,12 +877,13 @@ class HahGameSystem {
     this.czarPreviewAndSelect(players, game);
   }
   setText(ele, value) {
+    const wrapped = typeof value === "string" ? this.wrapText(value, this.MaxCharsPerLine) : value;
     if(window.isBanter) {
       setTimeout(()=>{
-        window.setText(ele.object3D.id, value);
+        window.setText(ele.object3D.id, wrapped);
       }, 500);
     }else{
-      ele.setAttribute("value", value);
+      ele.setAttribute("value", wrapped);
     }
   }
   parseMessage(msg) {
@@ -946,41 +966,41 @@ class HahGameSystem {
     const cardsHtml = `
       <a-entity class="_cardRoot" position="0 1.4 -1.3" rotation="-30 180 0" visible="false">
         <a-plane data-raycastable sq-collider sq-interactable class="_card0" position="0.265 -0.04 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 -10">
-          <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01" font="roboto"></a-text>
+          <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01"></a-text>
         </a-plane>
         <a-plane data-raycastable sq-collider sq-interactable class="_card1" position="0.16 -0.015 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 -6">
-          <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01" font="dejavu"></a-text>
+          <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01"></a-text>
         </a-plane> 
         <a-plane data-raycastable sq-collider sq-interactable class="_card2" position="0.055 0 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 -3">
-          <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01" font="exo2bold"></a-text>
+          <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01"></a-text>
         </a-plane>
         <a-plane data-raycastable sq-collider sq-interactable class="_card3" position="-0.055 0 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 3">
-          <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01" font="exo2semibold"></a-text>
+          <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01"></a-text>
         </a-plane>
         <a-plane data-raycastable sq-collider sq-interactable class="_card4" position="-0.16 -0.015 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 6">
-          <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01" font="exo2regular"></a-text>
+          <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01"></a-text>
         </a-plane>
         <a-plane data-raycastable sq-collider sq-interactable class="_card5" position="-0.265 -0.04 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 10">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01"></a-text>
         </a-plane>
         <a-entity position="0 -0.155 0">
           <a-plane data-raycastable sq-collider sq-interactable class="_card6" position="0.265 -0.04 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 -10">
-            <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01" font="mozillavr"></a-text>
+            <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01"></a-text>
           </a-plane>
           <a-plane data-raycastable sq-collider sq-interactable class="_card7" position="0.16 -0.015 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 -6">
-            <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01" font="sourcecodepro"></a-text>
+            <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01"></a-text>
           </a-plane>
           <a-plane data-raycastable sq-collider sq-interactable class="_card8" position="0.055 0 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 -3">
-            <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01" font="exo2semibold"></a-text>
+            <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01"></a-text>
           </a-plane>
           <a-plane data-raycastable sq-collider sq-interactable class="_card9" position="-0.055 0 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 3">
-            <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01" font="https://cdn.aframe.io/fonts/Exo2SemiBold.fnt"></a-text>
+            <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01"></a-text>
           </a-plane>
           <a-plane data-raycastable sq-collider sq-interactable class="_card10" position="-0.16 -0.015 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 6">
             <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01"></a-text>
           </a-plane>
           <a-plane data-raycastable sq-collider sq-interactable class="_card11" position="-0.265 -0.04 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 10">
-            <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01" font="exo2semibold"></a-text>
+            <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01"></a-text>
           </a-plane>
         </a-entity>
       </a-entity>`;
