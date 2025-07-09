@@ -2,10 +2,7 @@
 node_modules/
 
 # Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+server.log
 
 # Misc
 .DS_Store
-server.log
