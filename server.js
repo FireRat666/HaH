@@ -401,6 +401,8 @@ class GameServer{
         inactivityKickTimeout: null
       };
     })
+// Increment round number once per round
+    game.round = (game.round || 0) + 1;
     game.waitingRoom = [];
     const players = Object.keys(game.players);
     if(players.length < 3) {
@@ -580,7 +582,8 @@ class GameServer{
         isStarted: false,
         winner: null,
         debug: ws.debug || false,
-        sockets: {}
+        sockets: {},
+        round: 0
       }
     }
     return game;
@@ -635,7 +638,8 @@ class GameServer{
         showBlack, 
         currentPreviewResponse, 
         winner,
-        config: { disconnectTimeout: DISCONNECT_TIMEOUT_SECONDS }
+        config: { disconnectTimeout: DISCONNECT_TIMEOUT_SECONDS },
+        round: game.round 
       };
     };
 
