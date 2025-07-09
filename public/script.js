@@ -186,7 +186,7 @@ class HahGameSystem {
     }
 
     const cleanup = () => {
-      console.log("[confirm.cleanup] Called. newRoundWhileDialogOpen:", this.newRoundWhileDialogOpen, "hasSubmit:", this.hasSubmit);
+      this.log("[confirm.cleanup] Called. newRoundWhileDialogOpen:", this.newRoundWhileDialogOpen, "hasSubmit:", this.hasSubmit);
       this.isConfirmationDialogOpen = false;
       this.areYouSure.setAttribute("scale", "0 0 0");
       this.confirmButton.removeEventListener("click", confirmHandler);
@@ -197,12 +197,12 @@ class HahGameSystem {
       if (hideAllUI) {
         // If a new round started while dialog was open, reset local state
         if (this.newRoundWhileDialogOpen) {
-          console.log("[confirm.cleanup] Resetting game for new round after dialog.");
+          this.log("[confirm.cleanup] Resetting game for new round after dialog.");
           this.hasSubmit = false;
           this.resetGame();
           this.newRoundWhileDialogOpen = false;
         }
-        console.log("[confirm.cleanup] Calling syncGame with game:", this.game);
+        this.log("[confirm.cleanup] Calling syncGame with game:", this.game);
         this.syncGame(this.game);
       }
 
@@ -222,12 +222,12 @@ class HahGameSystem {
     this.cancelButton.addEventListener("click", cancelHandler);
   }
   selectIndividualCard(cardele, submit, reset, playerSection) {
-    console.log("[selectIndividualCard] Card clicked:", cardele, "hasSubmit:", this.hasSubmit);
+    this.log("[selectIndividualCard] Card clicked:", cardele, "hasSubmit:", this.hasSubmit);
     const numResponsesRequired = this.game.currentBlackCard?.numResponses || 1;
     const playerSelectionState = this.playerSelections[window.user.id];
 
     if (this.hasSubmit || !playerSelectionState || playerSelectionState.selectedCardElements.length >= numResponsesRequired) {
-      console.log("[selectIndividualCard] Click ignored. hasSubmit:", this.hasSubmit, "playerSelectionState:", playerSelectionState, "selected:", playerSelectionState?.selectedCardElements.length, "required:", numResponsesRequired);
+      this.log("[selectIndividualCard] Click ignored. hasSubmit:", this.hasSubmit, "playerSelectionState:", playerSelectionState, "selected:", playerSelectionState?.selectedCardElements.length, "required:", numResponsesRequired);
       return;
     }
 
@@ -395,7 +395,7 @@ class HahGameSystem {
               slot.setAttribute("scale", "0.1 0.15 0.1");
               slot.clickCallback = this.debounce(() => this.selectIndividualCard(slot, submit, reset, playerSection));
               slot.addEventListener("click", slot.clickCallback);
-              console.log(`[updatePlayerSlices] Attached click listener to card slot ${index} for player ${id}`, slot);
+              this.log(`[updatePlayerSlices] Attached click listener to card slot ${index} for player ${id}`, slot);
             } else {
               // This slot should be empty.
               slot.card = null;
@@ -808,9 +808,9 @@ class HahGameSystem {
     const prevRound = this.game?.round;
 
     // Always update the local game state
-    console.log("Before update: prevRound =", prevRound, "game.round =", game.round);
+    this.log("Before update: prevRound =", prevRound, "game.round =", game.round);
     this.game = game;
-    console.log("After update: this.game.round =", this.game.round);
+    this.log("After update: this.game.round =", this.game.round);
     const players = Object.keys(game.players);
     this.userIsPlaying = players.indexOf(window.user.id) > -1;
 
@@ -820,7 +820,7 @@ class HahGameSystem {
         (this.userIsPlaying && !wasPlaying) ||
         (typeof prevRound !== "undefined" && game.round !== prevRound)
       ) {
-        console.log("[syncGame] New round detected while dialog open. Setting newRoundWhileDialogOpen = true");
+        this.log("[syncGame] New round detected while dialog open. Setting newRoundWhileDialogOpen = true");
         this.newRoundWhileDialogOpen = true;
       }
       this.log("syncGame: Confirmation dialog is open, skipping UI updates.");
