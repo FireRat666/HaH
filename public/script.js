@@ -165,6 +165,7 @@ class HahGameSystem {
     if (hideAllUI) {
       this.hide(this.gameCard);
       this.hide(this.startCard);
+      this.hide(this.mainCTAJoinText);
       // Also hide the player's own card area if they are playing
       const userPlayer = this.game?.players[window.user?.id];
       if (userPlayer && this.userIsPlaying) {
@@ -359,29 +360,26 @@ class HahGameSystem {
           }
           // --- New, smarter hand update logic ---
           const cardElements = Array.from({ length: 12 }, (_, i) => playerSection.querySelector('._card' + i));
-          const newCardData = player.cards || [];
-          
-          const newCardIds = new Set(newCardData.map(c => c._id));
-          const currentDomCards = cardElements.map(el => el.card).filter(Boolean);
-          const currentDomCardIds = new Set(currentDomCards.map(c => c._id));
+          const newCardData = player.cards || [];          
 
-          const addedCards = newCardData.filter(c => !currentDomCardIds.has(c._id));
-          const freeSlots = cardElements.filter(el => !el.card || !newCardIds.has(el.card._id));
+          // This logic declaratively syncs the hand based on server state, ensuring listeners are always correct.
+          cardElements.forEach((slot, index) => {
+            const cardForThisSlot = newCardData[index];
 
-          freeSlots.forEach((slot, index) => {
-            const cardToAdd = addedCards[index];
+            // Always remove the old listener to prevent duplicates or stale closures.
             if (slot.clickCallback) {
               slot.removeEventListener("click", slot.clickCallback);
               slot.clickCallback = null;
             }
 
-            if (cardToAdd) {
-              slot.card = cardToAdd;
-              this.setText(slot.querySelector("a-text"), cardToAdd.text);
+            if (cardForThisSlot) {
+              slot.card = cardForThisSlot;
+              this.setText(slot.querySelector("a-text"), cardForThisSlot.text);
               slot.setAttribute("scale", "0.1 0.15 0.1");
               slot.clickCallback = this.debounce(() => this.selectIndividualCard(slot, submit, reset, playerSection));
               slot.addEventListener("click", slot.clickCallback);
             } else {
+              // This slot should be empty.
               slot.card = null;
               this.setText(slot.querySelector("a-text"), "-");
               slot.setAttribute("scale", "0 0 0");
@@ -395,10 +393,10 @@ class HahGameSystem {
             // Re-display the previewed cards from the local state. The main hand sync logic
             // might have re-shown the card in the hand, so we need to hide it again here.
 
-              // Ensure the parent container for previews is visible, as it might have been hidden by the confirm dialog.
-              const previewContainer = playerSection.querySelector("._cardSelection");
-              if (previewContainer) this.show(previewContainer);
-
+            // Ensure the parent container for previews is visible, as it might have been hidden by the confirm dialog.
+            const previewContainer = playerSection.querySelector("._cardSelection");
+            if (previewContainer) this.show(previewContainer);
+            
 
             playerSelectionState.selectedCardElements.forEach((selectedCardElement, index) => {
               const previewSlot = playerSelectionState.previewElements[index];
@@ -445,6 +443,15 @@ class HahGameSystem {
       if(id === game.czar) {
         this.hide(submit.parentElement);
         this.hide(reset.parentElement);
+        // If this player is the czar, ensure their hand cards are not clickable.
+        // This prevents a bug where a player who becomes czar can still click their old (now invisible) hand.
+        const cardElements = Array.from({ length: 12 }, (_, i) => playerSection.querySelector('._card' + i));
+        cardElements.forEach(slot => {
+            if (slot.clickCallback) {
+              slot.removeEventListener("click", slot.clickCallback);
+              slot.clickCallback = null;
+            }
+        });
         this.show(playerSection.querySelector('._playerSliceActive'));
         this.hide(playerSection.querySelector('._playerSlice'));
         if(game.czar === window.user.id) {
@@ -542,7 +549,7 @@ class HahGameSystem {
           value = "Click To Deal";
           this.canStart = true;
           this.show(this.mainCTAJoinButton);
-          
+          this.show(this.startCard);
         }
       }else{
         value = (3 - game.playerCount) + " More!";
@@ -566,6 +573,11 @@ class HahGameSystem {
       value = "Game Full";
     }
     this.setText(this.mainCTAJoinText, value);
+    if (value) {
+      this.show(this.mainCTAJoinText);
+    } else {
+      this.hide(this.mainCTAJoinText);
+    }
   }
   czarPreviewAndSelect(players, game) {
     if (!game.showBlack || game.winner) {
@@ -777,8 +789,12 @@ class HahGameSystem {
     }
     
     this.log("syncGame: New game state received", game);
-    this.game = game;
-    this.canStart = false;
+
+  // Detect if user is newly joining or if a new round started
+  const wasPlaying = this.userIsPlaying;
+  const prevRound = this.game?.round;
+  this.game = game;
+  this.canStart = false;
     
     if(!game.winner && this.hadWinner) {
       this.resetGame();
@@ -788,6 +804,16 @@ class HahGameSystem {
     
     const players = Object.keys(game.players);
     this.userIsPlaying = players.indexOf(window.user.id) > -1;
+
+    // Only reset if user is newly joining or a new round started
+    if (
+      (this.userIsPlaying && !wasPlaying) ||
+      (typeof prevRound !== "undefined" && game.round !== prevRound)
+    ) {
+      this.resetGame();
+      this.hasSubmit = false;
+    }
+    
     if(this.userIsPlaying) {
       this.leaveGame.setAttribute("scale", "1 1 1");
     }else{
