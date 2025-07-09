@@ -946,22 +946,22 @@ class HahGameSystem {
     const cardsHtml = `
       <a-entity class="_cardRoot" position="0 1.4 -1.3" rotation="-30 180 0" visible="false">
         <a-plane data-raycastable sq-collider sq-interactable class="_card0" position="0.265 -0.04 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 -10">
-          <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01" font="https://cdn.aframe.io/fonts/Exo2SemiBold.fnt"></a-text>
+          <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01" style="font-weight: bold;font-family: Arial, sans-serif;" font="https://cdn.aframe.io/fonts/Exo2SemiBold.fnt"></a-text>
         </a-plane>
         <a-plane data-raycastable sq-collider sq-interactable class="_card1" position="0.16 -0.015 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 -6">
-          <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01" font="https://cdn.aframe.io/fonts/Exo2SemiBold.fnt"></a-text>
+          <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01" style="font-weight: bold;font-family: Arial, sans-serif;" font="https://cdn.aframe.io/fonts/Exo2SemiBold.fnt"></a-text>
         </a-plane> 
         <a-plane data-raycastable sq-collider sq-interactable class="_card2" position="0.055 0 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 -3">
-          <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01" font="https://cdn.aframe.io/fonts/Exo2SemiBold.fnt"></a-text>
+          <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01" style="font-weight: bold;font-family: Arial, sans-serif;" font="https://cdn.aframe.io/fonts/Exo2SemiBold.fnt"></a-text>
         </a-plane>
         <a-plane data-raycastable sq-collider sq-interactable class="_card3" position="-0.055 0 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 3">
-          <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01" font="https://cdn.aframe.io/fonts/Exo2SemiBold.fnt"></a-text>
+          <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01" style="font-weight: bold;font-family: Arial, sans-serif;" font="https://cdn.aframe.io/fonts/Exo2SemiBold.fnt"></a-text>
         </a-plane>
         <a-plane data-raycastable sq-collider sq-interactable class="_card4" position="-0.16 -0.015 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 6">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01" font="https://cdn.aframe.io/fonts/Exo2SemiBold.fnt"></a-text>
         </a-plane>
         <a-plane data-raycastable sq-collider sq-interactable class="_card5" position="-0.265 -0.04 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 10">
-          <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01" font="https://cdn.aframe.io/fonts/Exo2SemiBold.fnt"></a-text>
+          <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01"></a-text>
         </a-plane>
         <a-entity position="0 -0.155 0">
           <a-plane data-raycastable sq-collider sq-interactable class="_card6" position="0.265 -0.04 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 -10">
