@@ -888,7 +888,7 @@ class HahGameSystem {
         </a-plane>
         <a-plane data-raycastable sq-collider sq-interactable class="_card3" position="-0.055 0 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 3">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01"></a-text>
-        </a-plane>
+        </a-plane>sd
         <a-plane data-raycastable sq-collider sq-interactable class="_card4" position="-0.16 -0.015 0" scale="0.1 0.15 0.1" color="#FFF" src="${WEBSITE_URL}/Assets/hero-texture.png" side="double" rotation="0 0 6">
           <a-text baseline="top" value="-" color="#000" scale="0.4 0.3 0.4" position="-0.45 0.4 0.01"></a-text>
         </a-plane>
@@ -937,12 +937,12 @@ class HahGameSystem {
         ${playerSection}
         <a-entity position="0 1.3 0.1" sq-billboard look-at="[camera]" scale="0 0 0" class="_areYouSure">
           <a-plane scale="0.5 0.3 1" color="#000" rotation="0 0 0" material="shader: flat;"></a-plane>
-          <a-text baseline="center" align="center" value="Are you sure?" scale="0.25 0.25 1" position="0 0.07 0.01" width="1.8"></a-text>
+          <a-text baseline="center" align="center" value="Are you sure?" scale="0.25 0.25 1" position="0 0.07 0.01"></a-text>
           <a-entity position="-0.1 -0.05 0.1" scale="0.6 0.6 0.6">
             <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 180 0" class="_cancel" gltf-model="${WEBSITE_URL}/Assets/ButtonS.glb"></a-entity>
             <a-plane position="0 0 0" scale="0.2 0.2 0.2" transparent="true" src="${WEBSITE_URL}/Assets/cross.png" rotation="0 0 0"></a-plane> 
           </a-entity>
-          <a-entity position="0.1 -0.05 0.1" scale="0.6 0.6 0.6">
+          <a-entity position="0.1 0.05 0.1" scale="0.6 0.6 0.6">
             <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 180 0" class="_confirm" gltf-model="${WEBSITE_URL}/Assets/ButtonS.glb"></a-entity>
             <a-plane position="0 0 0" scale="0.2 0.2 0.2" transparent="true" src="${WEBSITE_URL}/Assets/check.png" rotation="0 0 0"></a-plane> 
           </a-entity>
