@@ -950,11 +950,11 @@ class HahGameSystem {
           <a-text baseline="center" align="center" value="Are you sure?" scale="0.25 0.25 1" position="0 0.07 0.01"></a-text>
           <a-entity position="-0.1 -0.05 0.1" scale="0.6 0.6 0.6">
             <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 180 0" class="_cancel" gltf-model="${WEBSITE_URL}/Assets/ButtonS.glb"></a-entity>
-            <a-plane position="0 0 0" scale="0.2 0.2 0.2" transparent="true" src="${WEBSITE_URL}/Assets/cross.png" rotation="0 0 0"></a-plane> 
+            <a-plane position="0 0 0.15" scale="0.2 0.2 0.2" transparent="true" src="${WEBSITE_URL}/Assets/cross.png" rotation="0 0 0"></a-plane> 
           </a-entity>
           <a-entity position="0.1 -0.05 0.1" scale="0.6 0.6 0.6">
             <a-entity data-raycastable sq-boxcollider="size: 0.3 0.2 0.05" sq-interactable rotation="0 180 0" class="_confirm" gltf-model="${WEBSITE_URL}/Assets/ButtonS.glb"></a-entity>
-            <a-plane position="0 0 0.2" scale="0.2 0.2 0.2" transparent="true" src="${WEBSITE_URL}/Assets/check.png" rotation="0 0 0"></a-plane> 
+            <a-plane position="0 0 0.15" scale="0.2 0.2 0.2" transparent="true" src="${WEBSITE_URL}/Assets/check.png" rotation="0 0 0"></a-plane> 
           </a-entity>
         </a-entity>
         
