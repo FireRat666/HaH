@@ -194,6 +194,8 @@ class GameServer{
       // Before removing the player, store their trophy count to be restored if they rejoin.
       if (!game.persistent_scores) game.persistent_scores = {};
       game.persistent_scores[ws.u.id] = player.trophies;
+      if (!game.persistent_positions) game.persistent_positions = {};
+      game.persistent_positions[ws.u.id] = player.position;
 
       if (player.disconnectKickTimeout) {
         clearTimeout(player.disconnectKickTimeout);
@@ -250,6 +252,7 @@ class GameServer{
       game.originalDeck = newDeck;
       game.czar = "";
       game.persistent_scores = {};
+      game.persistent_positions = {};
       game.players = {};
       game.waitingRoom = [];
       game.blackDeck = game.originalDeck.black.slice().sort(() => Math.random() - 0.5);
@@ -476,23 +479,36 @@ class GameServer{
   }
   async startGame(ws) {
     const game = await this.getOrCreateGame(ws);
-    game.waitingRoom.forEach(d => {
+    game.waitingRoom.forEach(d => { // d is the user object {id, name}
+      const previousTrophies = (game.persistent_scores && game.persistent_scores[d.id]) || 0;
+
+      const previousPosition = (game.persistent_positions && game.persistent_positions[d.id]);
+      const occupiedPositions = new Set(Object.values(game.players).map(p => p.position));
+      let positionToAssign;
+
+      if (previousPosition !== undefined && !occupiedPositions.has(previousPosition)) {
+        positionToAssign = previousPosition;
+        delete game.persistent_positions[d.id];
+      } else {
+        positionToAssign = this.getPosition(game);
+      }
+
       game.sockets[d.id].player = game.players[d.id] = {
         _id: d.id,
-        trophies: 0, 
-        cards: [], 
+        trophies: previousTrophies,
+        cards: [],
         selected: [],
         name: d.name,
-        position: this.getPosition(game),
-        connected:true,
-        disconnectTime:0,
+        position: positionToAssign,
+        connected: true,
+        disconnectTime: 0,
         inactivityKickTime: 0,
         wantsNewHand: false,
         hasRequestedHandDumpThisRound: false,
         inactivityKickTimeout: null
       };
-    })
-// Increment round number once per round
+    });
+    // Increment round number once per round
     game.round = (game.round || 0) + 1;
     game.waitingRoom = [];
     const players = Object.keys(game.players);
@@ -602,13 +618,24 @@ class GameServer{
       }
       const previousTrophies = (game.persistent_scores && game.persistent_scores[ws.u.id]) || 0;
 
+      const previousPosition = (game.persistent_positions && game.persistent_positions[ws.u.id]);
+      const occupiedPositions = new Set(Object.values(game.players).map(p => p.position));
+      let positionToAssign;
+
+      if (previousPosition !== undefined && !occupiedPositions.has(previousPosition)) {
+        positionToAssign = previousPosition;
+        delete game.persistent_positions[ws.u.id];
+      } else {
+        positionToAssign = this.getPosition(game);
+      }
+
       ws.player = game.players[ws.u.id] = {
         _id: ws.u.id,
         trophies: previousTrophies,
         cards: [], 
         selected: [],
         name: ws.u.name,
-        position: this.getPosition(game),
+        position: positionToAssign,
         connected:true,
         disconnectTime:0,
         inactivityKickTime: 0,
@@ -686,6 +713,7 @@ class GameServer{
       game = this.games[ws.i] = {
         id: ws.i,
         players: {},
+        persistent_positions: {},
         persistent_scores: {},
         waitingRoom: [],
         czar: null,
