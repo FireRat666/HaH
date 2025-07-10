@@ -1013,8 +1013,8 @@ class HahGameSystem {
           ${resetHtml}
           <a-entity class="_playerSliceActive" gltf-model="${this.models.playerSliceActive}"  scale="0.01 0.01 0.01"></a-entity>
           <a-entity class="_playerSlice" gltf-model="${this.models.playerSlice}"  scale="0.01 0.01 0.01"></a-entity>
-          <a-text class="_playerStatus" position="0 1.15 -1.37" align="center" rotation="-30 0 0" value="" scale="0.08 0.08 0.08" color="yellow"></a-text>
-          <a-text class="_nameTagTimer" position="0 1.07 -1.37" align="center" rotation="-30 0 0" value="" scale="0.08 0.08 0.08"></a-text>
+          <a-text class="_playerStatus" position="0 1.15 -1.37" align="center" rotation="-30 180 0" value="" scale="0.09 0.09 0.09" color="green"></a-text>
+          <a-text class="_nameTagTimer" position="0 1.07 -1.37" align="center" rotation="-30 0 0" value="" scale="0.1 0.1 0.1"></a-text>
           <a-entity class="_namePlate" gltf-model="${this.models.namePlate}" position="0 1 -1.4" scale="0.01 0.01 0.01"></a-entity>
           <!-- <a-box position="0 1.08 -1.45" scale="0.2 0.01 0.01" color="green"></a-box> -->
           <a-text class="_nameTag" position="0 1.07 -1.43" align="center" rotation="-30 180 0" value="Nametag" scale="0.08 0.08 0.08"></a-text>
