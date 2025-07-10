@@ -191,6 +191,10 @@ class GameServer{
     const game = await this.getOrCreateGame(ws);
     if(game.players[ws.u.id]) {
       const player = game.players[ws.u.id];
+      // Before removing the player, store their trophy count to be restored if they rejoin.
+      if (!game.persistent_scores) game.persistent_scores = {};
+      game.persistent_scores[ws.u.id] = player.trophies;
+
       if (player.disconnectKickTimeout) {
         clearTimeout(player.disconnectKickTimeout);
       }
@@ -245,6 +249,7 @@ class GameServer{
       const newDeck = await this.getDeck(ws.deckName);
       game.originalDeck = newDeck;
       game.czar = "";
+      game.persistent_scores = {};
       game.players = {};
       game.waitingRoom = [];
       game.blackDeck = game.originalDeck.black.slice().sort(() => Math.random() - 0.5);
@@ -595,9 +600,11 @@ class GameServer{
       if(game.players[ws.u.id]) {
         clearTimeout(game.players[ws.u.id].disconnectKickTimeout);
       }
+      const previousTrophies = (game.persistent_scores && game.persistent_scores[ws.u.id]) || 0;
+
       ws.player = game.players[ws.u.id] = {
         _id: ws.u.id,
-        trophies: 0, 
+        trophies: previousTrophies,
         cards: [], 
         selected: [],
         name: ws.u.name,
@@ -679,6 +686,7 @@ class GameServer{
       game = this.games[ws.i] = {
         id: ws.i,
         players: {},
+        persistent_scores: {},
         waitingRoom: [],
         czar: null,
         currentBlackCard: null,
