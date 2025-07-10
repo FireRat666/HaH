@@ -402,7 +402,13 @@ class GameServer{
     if (hasAllCards) {
       // Move cards from hand to selected
       player.selected = submittedCards;
-      player.cards = player.cards.filter(card => !submittedCardIds.includes(card._id));
+      // Replace submitted cards with null to keep their slots
+      player.cards = player.cards.map(card => {
+        if (card && submittedCardIds.includes(card._id)) {
+          return null;
+        }
+        return card;
+      });
 
       const playersInGame = Object.values(game.players);
       const nonCzarPlayers = playersInGame.filter(p => p._id !== game.czar);
@@ -481,15 +487,27 @@ class GameServer{
     });
     players.forEach(d => {
       const player = game.players[d];
+      // First, fill in the null gaps from played cards
+      for (let i = 0; i < player.cards.length; i++) {
+        if (player.cards[i] === null) {
+          const newCard = this._drawWhiteCard(game);
+          if (newCard) {
+            player.cards[i] = newCard;
+          } else {
+            // No more white cards to draw, stop trying to fill gaps
+            break;
+          }
+        }
+      }
+
+      // Clean up any remaining nulls (in case we ran out of cards to deal)
       player.cards = player.cards.filter(c => c);
+
+      // Then, top up the hand to the maximum size if needed
       while (player.cards.length < 12) {
         const newCard = this._drawWhiteCard(game);
-        if (newCard) {
-          player.cards.push(newCard);
-        } else {
-          // No more white cards available in deck or discard
-          break;
-        }
+        if (!newCard) break; // No more cards to draw
+        player.cards.push(newCard);
       }
     });
     // Set inactivity timers for players (not the czar)
