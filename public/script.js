@@ -146,7 +146,7 @@ class HahGameSystem {
       this.send("reset-game");
       this.resetGame();
     });
-    this.mainCTAJoinButton.addEventListener('click', this.debounce(() => {
+    this.mainCTAJoinButton.addEventListener('click', this.throttle(() => {
       if(this.canStart){
         this.send('start-game');
         this.log("Starting game...");
@@ -155,7 +155,7 @@ class HahGameSystem {
         this.log("Joining game...");
       }
     }));
-    this.leaveGame.addEventListener('click', this.debounce(() => {
+    this.leaveGame.addEventListener('click', this.throttle(() => {
       this.confirm(() => {
         this.send('leave-game');
       }, "Leave game?", { hideAllUI: true });
@@ -272,7 +272,7 @@ class HahGameSystem {
     if(playerSection.submitCallback) {
       submit.removeEventListener("click", playerSection.submitCallback);
     }
-    playerSection.submitCallback = this.debounce(() => this.chooseCards(submit, reset, playerSection));
+    playerSection.submitCallback = this.throttle(() => this.chooseCards(submit, reset, playerSection));
     submit.addEventListener("click", playerSection.submitCallback);
   }
   chooseCards(submit, reset, playerSection) {
@@ -391,7 +391,7 @@ class HahGameSystem {
             };
           }
           if(!playerSection.resetCallback) {
-            playerSection.resetCallback = this.debounce(() => this.resetChoice(submit, reset, playerSection));
+            playerSection.resetCallback = this.throttle(() => this.resetChoice(submit, reset, playerSection));
             reset.addEventListener("click", playerSection.resetCallback);
           }
           // --- New, smarter hand update logic ---
@@ -412,7 +412,7 @@ class HahGameSystem {
               slot.card = cardForThisSlot;
               this.setText(slot.querySelector("a-text"), cardForThisSlot.text);
               slot.setAttribute("scale", "0.1 0.15 0.1");
-              slot.clickCallback = this.debounce(() => this.selectIndividualCard(slot, submit, reset, playerSection));
+              slot.clickCallback = this.throttle(() => this.selectIndividualCard(slot, submit, reset, playerSection));
               slot.addEventListener("click", slot.clickCallback);
               this.log(`[updatePlayerSlices] Attached click listener to card slot ${index} for player ${id}`, slot);
             } else {
@@ -457,7 +457,7 @@ class HahGameSystem {
           if (game.isStarted && !game.winner && !player.hasRequestedHandDumpThisRound) {
             this.show(dumpHandContainer);
             if (!dumpHandButton.clickCallback) {
-              dumpHandButton.clickCallback = this.debounce(() => {
+              dumpHandButton.clickCallback = this.throttle(() => {
                 this.confirm(
                   () => { this.send('dump-hand'); },
                   "Discard hand?",
@@ -496,7 +496,7 @@ class HahGameSystem {
           if(currentBlackCard.showCallback) {
             currentBlackCard.removeEventListener("click", currentBlackCard.showCallback);
           }
-          currentBlackCard.showCallback = this.debounce(() => {
+          currentBlackCard.showCallback = this.throttle(() => {
             // Immediately hide the small card for a responsive feel
             currentBlackCard.setAttribute("scale", "0 0 0");
             this.show(this.gameCard);
@@ -510,12 +510,12 @@ class HahGameSystem {
       }
     }
   }
-  debounce(click) {
+  throttle(click) {
     return () => {
-      // OK i changed to throttling instead of debounce, havent updated the name yet.
+      // It prevents a click from firing more than once every 200ms.
       const now = new Date().getTime();
       if(this.lastClickTime && now - this.lastClickTime < 200) {
-        return () => {};
+        return;
       }
       this.lastClickTime = now;
       click();
@@ -627,7 +627,7 @@ class HahGameSystem {
 
     this.show(this.gameCard);
     this.currentPlayer  = game.currentPreviewResponse || 0;
-    const responses = this._getShuffledResponses(players, game);
+    const responses = this._getShuffledPlayersWithResponses(players, game);
     const numResponsesRequired = game.currentBlackCard?.numResponses || 1;
     // Ensure we don't get a false positive on an empty array.
     this.log("Czar Preview - currentPreviewResponse:", game.currentPreviewResponse, "responses.length", responses.length);
@@ -647,7 +647,7 @@ class HahGameSystem {
       czarControls.forEach(c => this.hide(c));
     }
   }
-  _getShuffledResponses(players, game) {
+  _getShuffledPlayersWithResponses(players, game) {
     const gamePlayersWithoutCzar = players
       .filter(id => id !== game.czar)
       .map(id => game.players[id]);
@@ -737,21 +737,21 @@ class HahGameSystem {
     if (this.submitWinner.clickCallback) this.submitWinner.removeEventListener("click", this.submitWinner.clickCallback);
 
     // Next Button
-    this.gameCard.nextPlayerResponseCallback = this.debounce(() => {
+    this.gameCard.nextPlayerResponseCallback = this.throttle(() => {
       this.currentPlayer = Math.min(this.currentPlayer + 1, responses.length - 1);
       this.send("preview-response", this.currentPlayer);
     });
     nextBtn.addEventListener("click", this.gameCard.nextPlayerResponseCallback);
 
     // Previous Button
-    this.gameCard.prevPlayerResponseCallback = this.debounce(() => {
+    this.gameCard.prevPlayerResponseCallback = this.throttle(() => {
       this.currentPlayer = Math.max(this.currentPlayer - 1, 0);
       this.send("preview-response", this.currentPlayer);
     });
     prevBtn.addEventListener("click", this.gameCard.prevPlayerResponseCallback);
 
     // Submit Winner Button
-    this.submitWinner.clickCallback = this.debounce(() => {
+    this.submitWinner.clickCallback = this.throttle(() => {
       const winningPlayer = responses[this.currentPlayer];
       const onCleanup = () => {
         czarControls.forEach(c => this.show(c));
