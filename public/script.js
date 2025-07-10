@@ -475,8 +475,8 @@ class HahGameSystem {
           }
         }
       }
-      this.currentBlackCard = playerSection.querySelector("._cardCzar");
-      this.currentBlackCard.setAttribute("scale", game.isStarted && game.czar === id && !game.winner ? "0.1 0.15 0.1" : "0 0 0");
+      const currentBlackCard = playerSection.querySelector("._cardCzar");
+      currentBlackCard.setAttribute("scale", game.isStarted && game.czar === id && !game.winner && !game.showBlack ? "0.1 0.15 0.1" : "0 0 0");
       if(id === game.czar) {
         this.hide(submit.parentElement);
         this.hide(reset.parentElement);
@@ -492,15 +492,17 @@ class HahGameSystem {
         this.show(playerSection.querySelector('._playerSliceActive'));
         this.hide(playerSection.querySelector('._playerSlice'));
         if(game.czar === window.user.id) {
-          this.setText(this.currentBlackCard.querySelector("a-text"), game.currentBlackCard.text);
-          if(this.currentBlackCard.showCallback) {
-            this.currentBlackCard.removeEventListener("click", this.currentBlackCard.showCallback);
+          this.setText(currentBlackCard.querySelector("a-text"), game.currentBlackCard.text);
+          if(currentBlackCard.showCallback) {
+            currentBlackCard.removeEventListener("click", currentBlackCard.showCallback);
           }
-          this.currentBlackCard.showCallback = this.debounce(() => {
+          currentBlackCard.showCallback = this.debounce(() => {
+            // Immediately hide the small card for a responsive feel
+            currentBlackCard.setAttribute("scale", "0 0 0");
             this.show(this.gameCard);
             this.send("show-black");
           });
-          this.currentBlackCard.addEventListener("click", this.currentBlackCard.showCallback);
+          currentBlackCard.addEventListener("click", currentBlackCard.showCallback);
         }
       }else{
         this.hide(playerSection.querySelector('._playerSliceActive'));
