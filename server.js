@@ -198,10 +198,10 @@ class GameServer{
         clearTimeout(player.inactivityKickTimeout);
       }
       if (player.cards) {
-        game.white.push(...player.cards.filter(c => c));
+        game.whiteDiscard.push(...player.cards.filter(c => c));
       }
       if (player.selected) {
-        game.white.push(...player.selected.filter(c => c));
+        game.whiteDiscard.push(...player.selected.filter(c => c));
       }
       const wasCzar = ws.u.id === game.czar;
       delete game.players[ws.u.id];
@@ -233,7 +233,7 @@ class GameServer{
       player.selected = [];
       return selected;
     });
-    game.white.push(...allSelectedCards.filter(c => c));
+    game.whiteDiscard.push(...allSelectedCards.filter(c => c));
     game.currentPreviewResponse = 0;
     game.showBlack = false;
     game.winner = null;
@@ -242,19 +242,19 @@ class GameServer{
       logger.info(`Game instance "${ws.i}" is being hard-reset by ${ws.u.name} with deck: ${ws.deckName}`);
       const newDeck = await this.getDeck(ws.deckName);
       game.originalDeck = newDeck;
-      game.czar = ""
+      game.czar = "";
       game.players = {};
       game.waitingRoom = [];
-      game.black = game.originalDeck.black.slice().sort(() => Math.random() - 0.5);
-      game.white = game.originalDeck.white.slice().sort(() => Math.random() - 0.5);
+      game.blackDeck = game.originalDeck.black.slice().sort(() => Math.random() - 0.5);
+      game.whiteDeck = game.originalDeck.white.slice().sort(() => Math.random() - 0.5);
+      game.blackDiscard = [];
+      game.whiteDiscard = [];
     }else{
       const currentCzarIndex = players.indexOf(game.czar);
       let nextCzarIndex = currentCzarIndex+1;
       if(nextCzarIndex > players.length - 1) {
         nextCzarIndex = 0;
       }
-      game.white.sort(() => Math.random() - 0.5);
-      game.black.sort(() => Math.random() - 0.5);
       game.czar = players[nextCzarIndex];
     }
   }
@@ -291,6 +291,60 @@ class GameServer{
       this.send(ws, "error", "Only the czar can choose a winner.");
     } 
   }
+
+  _drawWhiteCard(game) {
+    if (game.whiteDeck.length === 0) {
+      if (game.whiteDiscard.length === 0) {
+        logger.warn(`Game instance "${game.id}" ran out of white cards in both deck and discard. Reshuffling from original deck.`);
+
+        // Get all card IDs currently in players' hands to avoid dealing duplicates.
+        const cardsInHands = new Set(
+          Object.values(game.players).flatMap(p => (p.cards || []).map(c => c._id))
+        );
+
+        // Filter the original deck to get only cards that are not currently in play.
+        const availableCards = game.originalDeck.white.filter(c => !cardsInHands.has(c._id));
+
+        if (availableCards.length === 0) {
+          logger.error(`Game instance "${game.id}" has absolutely no white cards left to deal.`);
+          return null;
+        }
+
+        game.whiteDeck = availableCards.slice().sort(() => Math.random() - 0.5);
+        logger.info(`Re-shuffled ${game.whiteDeck.length} available original white cards for game "${game.id}".`);
+      } else {
+        logger.info(`Reshuffling white discard pile into deck for game "${game.id}".`);
+        game.whiteDeck = game.whiteDiscard;
+        game.whiteDiscard = [];
+        // Shuffle the newly formed deck
+        game.whiteDeck.sort(() => Math.random() - 0.5);
+      }
+    }
+    return game.whiteDeck.pop();
+  }
+
+  _drawBlackCard(game) {
+    if (game.blackDeck.length === 0) {
+      if (game.blackDiscard.length === 0) {
+        logger.warn(`Game instance "${game.id}" ran out of black cards. Reshuffling original deck.`);
+        game.blackDeck = game.originalDeck.black.slice().sort(() => Math.random() - 0.5);
+        game.blackDiscard = [];
+        if (game.blackDeck.length === 0) return null; // Still no cards
+      } else {
+        logger.info(`Reshuffling black discard pile into deck for game "${game.id}".`);
+        game.blackDeck = game.blackDiscard;
+        game.blackDiscard = [];
+        game.blackDeck.sort(() => Math.random() - 0.5);
+      }
+    }
+    const card = game.blackDeck.pop();
+    if (card) {
+      // The drawn black card immediately goes to the discard pile
+      game.blackDiscard.push(card);
+    }
+    return card;
+  }
+  
   async dumpHand(ws) {
     const game = await this.getOrCreateGame(ws);
     const player = game.players[ws.u.id];
@@ -418,20 +472,24 @@ class GameServer{
       if (player.wantsNewHand) {
         logger.info(`Replacing hand for ${player.name}.`);
         if (player.cards && player.cards.length > 0) {
-          game.white.push(...player.cards.filter(c => c));
+          game.whiteDiscard.push(...player.cards.filter(c => c));
         }
         player.cards = [];
         player.wantsNewHand = false;
-        // Shuffling the deck after adding cards back is good practice
-        game.white.sort(() => Math.random() - 0.5);
       }
       player.hasRequestedHandDumpThisRound = false;
     });
     players.forEach(d => {
       const player = game.players[d];
       player.cards = player.cards.filter(c => c);
-      while (player.cards.length < 12 && game.white.length > 0) {
-        player.cards.push(game.white.pop());
+      while (player.cards.length < 12) {
+        const newCard = this._drawWhiteCard(game);
+        if (newCard) {
+          player.cards.push(newCard);
+        } else {
+          // No more white cards available in deck or discard
+          break;
+        }
       }
     });
     // Set inactivity timers for players (not the czar)
@@ -450,7 +508,7 @@ class GameServer{
         }, 1000 * IDLE_TIMEOUT_SECONDS);
       }
     });
-    game.currentBlackCard = game.black.pop(); 
+    game.currentBlackCard = this._drawBlackCard(game);
     game.isStarted = true;
     this.playSound(game, "gameStart.ogg");
     this.syncGame(game); 
@@ -570,6 +628,7 @@ class GameServer{
     if(!game) {
       const deck = await this.getDeck(ws.deckName);
       game = this.games[ws.i] = {
+        id: ws.i,
         players: {},
         waitingRoom: [],
         czar: null,
@@ -577,8 +636,10 @@ class GameServer{
         currentPreviewResponse: 0,
         showBlack: false,
         originalDeck: deck,
-        black: deck.black.slice().sort(() => Math.random() - 0.5),
-        white: deck.white.slice().sort(() => Math.random() - 0.5),
+        blackDeck: deck.black.slice().sort(() => Math.random() - 0.5),
+        whiteDeck: deck.white.slice().sort(() => Math.random() - 0.5),
+        blackDiscard: [],
+        whiteDiscard: [],
         isStarted: false,
         winner: null,
         debug: ws.debug || false,
