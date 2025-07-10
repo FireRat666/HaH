@@ -225,6 +225,8 @@ class GameServer{
       const player = game.players[playerId];
       if (player.inactivityKickTimeout) {
         clearTimeout(player.inactivityKickTimeout);
+        player.inactivityKickTime = 0;
+        player.inactivityKickTimeout = null;
       }
     });
     const allSelectedCards = players.flatMap(playerId => {
@@ -262,6 +264,30 @@ class GameServer{
     const game = await this.getOrCreateGame(ws);
     if(ws.u.id === game.czar) {
       game.showBlack = true;
+
+      // Clear the czar's inactivity timer since they've acted.
+      const czarPlayer = game.players[game.czar];
+      if (czarPlayer && czarPlayer.inactivityKickTimeout) {
+        clearTimeout(czarPlayer.inactivityKickTimeout);
+        czarPlayer.inactivityKickTime = 0;
+        czarPlayer.inactivityKickTimeout = null;
+      }
+
+      // Now, set inactivity timers for all other players.
+      const players = Object.keys(game.players);
+      players.forEach(playerId => {
+        if (playerId !== game.czar) {
+          const player = game.players[playerId];
+          player.inactivityKickTime = new Date().getTime() + (1000 * IDLE_TIMEOUT_SECONDS);
+          player.inactivityKickTimeout = setTimeout(() => {
+            if (game.players[playerId] && (!game.players[playerId].selected || game.players[playerId].selected.length === 0)) {
+              logger.info(`Player ${player.name} kicked for game inactivity.`);
+              this.removePlayer({ u: { id: playerId, name: player.name }, i: ws.i });
+            }
+          }, 1000 * IDLE_TIMEOUT_SECONDS);
+        }
+      });
+
       this.syncGame(game);
     }else{
       this.send(ws, "error", "Only the czar can show the black card.");
@@ -510,22 +536,27 @@ class GameServer{
         player.cards.push(newCard);
       }
     });
-    // Set inactivity timers for players (not the czar)
+    // Clear any previous timers for all players before starting a new round.
     players.forEach(playerId => {
       const player = game.players[playerId];
-      // Clear any previous timer before setting a new one
-      if (player.inactivityKickTimeout) clearTimeout(player.inactivityKickTimeout);
-
-      if (playerId !== game.czar) {
-        player.inactivityKickTime = new Date().getTime() + (1000 * IDLE_TIMEOUT_SECONDS);
-        player.inactivityKickTimeout = setTimeout(() => {
-          if (game.players[playerId] && (!game.players[playerId].selected || game.players[playerId].selected.length === 0)) {
-            logger.info(`Player ${player.name} kicked for game inactivity.`);
-            this.removePlayer({ u: { id: playerId, name: player.name }, i: ws.i }); // Create a mock ws object for removePlayer
-          }
-        }, 1000 * IDLE_TIMEOUT_SECONDS);
+      if (player.inactivityKickTimeout) {
+        clearTimeout(player.inactivityKickTimeout);
+        player.inactivityKickTimeout = null;
+        player.inactivityKickTime = 0;
       }
     });
+
+    // Set inactivity timer for the Czar to reveal the black card.
+    const czarPlayer = game.players[game.czar];
+    if (czarPlayer) {
+      czarPlayer.inactivityKickTime = new Date().getTime() + (1000 * IDLE_TIMEOUT_SECONDS);
+      czarPlayer.inactivityKickTimeout = setTimeout(() => {
+        if (game.players[game.czar] && !game.showBlack) {
+          logger.info(`Czar ${czarPlayer.name} kicked for inactivity (did not show black card).`);
+          this.removePlayer({ u: { id: czarPlayer._id, name: czarPlayer.name }, i: ws.i });
+        }
+      }, 1000 * IDLE_TIMEOUT_SECONDS);
+    }
     game.currentBlackCard = this._drawBlackCard(game);
     game.isStarted = true;
     this.playSound(game, "gameStart.ogg");
