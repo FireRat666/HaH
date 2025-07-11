@@ -101,8 +101,11 @@ class HahGameSystem {
   }
   setOrDefault(attr, defaultValue) {
     const value = this.currentScript.getAttribute(attr);
+    const dataValue = this.currentScript && this.currentScript.dataset ? this.currentScript.dataset[attr] : undefined;
+    const urlValue = this.urlParams ? this.urlParams.get(attr) : undefined;
+    const finalValue = this.urlParams.has(attr) ? urlValue : value;
     this.params = this.params || {};
-    this.params[attr] = value || (this.urlParams.has(attr) ? this.urlParams.get(attr) : defaultValue);
+    this.params[attr] = finalValue || defaultValue;
   }
   setupWebsocket(){
     return new Promise(resolve => {
@@ -131,8 +134,20 @@ class HahGameSystem {
   }
   setupTable() {
     this.startCard = this.parent.querySelector("._startCard");
+    if(!this.startCard) {
+      console.error("Start card not found!");
+      return;
+    }
     this.submitWinner = this.parent.querySelector("._submitWinner");
+    if(!this.submitWinner) {
+      console.error("Submit winner not found!");
+      return;
+    }
     this.gameCard = this.parent.querySelector("._gameCard");
+    if(!this.gameCard) {
+      console.error("Game card not found!");
+      return;
+    }
     this.gameBox = this.parent.querySelector("._hahBox");
     this.leaveGame = this.parent.querySelector("._leaveGame");
     this.areYouSure = this.parent.querySelector("._areYouSure");
@@ -1105,5 +1120,22 @@ if(window.isBanter) {
   window.loadDoneCallback = () => window.banterLoaded = true;
 }
 if (!window.gameSystem) {
-  window.gameSystem = new HahGameSystem();
+  const initGame = () => {
+    try {
+      window.gameSystem = new HahGameSystem();
+    } catch (error) {
+      console.error("Error initializing HahGameSystem:", error);
+    }
+  };
+
+  if (document.querySelector('a-scene').hasLoaded) {
+      console.log("A-Frame scene already loaded, initializing game.");
+      initGame();
+  } else {
+      console.log("A-Frame scene not yet loaded, waiting for 'loaded' event.");
+      document.querySelector('a-scene').addEventListener('loaded', function () {
+          console.log("A-Frame scene loaded, initializing game.");
+          initGame();
+      });
+  }
 }
