@@ -67,7 +67,8 @@ class HahGameSystem {
     this.parseParams();
     console.log("Params after parsing:", this.params);
     console.log("Initializing new game system.");
-    if(window.isBanter) {
+    if(window.isBanter) { // Banter-specific initialization
+      console.log("Banter mode detected - waiting for user and banterLoaded...");
       await window.AframeInjection.waitFor(window, 'user');
       await window.AframeInjection.waitFor(window, 'banterLoaded');
     }
@@ -1129,9 +1130,23 @@ class HahGameSystem {
     return parent;
   }
 }
-if(window.isBanter) {
-  window.loadDoneCallback = () => window.banterLoaded = true;
-}
+if(window.isBanter){ // Check if the window is in Banter mode
+  const scene = BS.BanterScene.GetInstance(); // Get the BanterScene instance
+  let waitingforunity = true; // Flag to check if we are waiting for Unity to load
+  var waitinterval; // Variable to hold the interval ID
+  if (waitingforunity) { // If we are waiting for Unity to load
+    console.log("SCENE: Waiting for Unity to load..."); // Log that we are waiting for Unity to load
+    waitinterval = setInterval(function() { // Set an interval to check if Unity has loaded
+      if (scene.unityLoaded) { waitingforunity = false; clearInterval(waitinterval); // Clear the interval if Unity has loaded
+        if (!window.UnitySceneLoaded) { // This ensures the scene is only initialized once
+          window.UnitySceneLoaded = true; // Set the Unity scene loaded flag to true
+          console.log("SCENE: unityLoaded Initialising!"); // Log that Unity has loaded and we are initializing the scene
+          window.loadDoneCallback = () => window.banterLoaded = true;
+        }; 
+      };
+    }, 1000); // Check every second if Unity has loaded
+  };
+};
 
 if (!window.gameSystem) {
   function initGame() {
