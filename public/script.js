@@ -67,10 +67,18 @@ class HahGameSystem {
     this.parseParams();
     console.log("Params after parsing:", this.params);
     console.log("Initializing new game system.");
-    if(window.isBanter) { // Banter-specific initialization
-      console.log("Banter mode detected - waiting for user and banterLoaded...");
-      await window.AframeInjection.waitFor(window, 'user');
-      await window.AframeInjection.waitFor(window, 'banterLoaded');
+    if (window.isBanter) {
+      console.log("Banter mode detected - waiting for UnitySceneLoaded...");
+      const scene = BS.BanterScene.GetInstance();
+      var waitinterval = setInterval(function() {
+        if (scene.unityLoaded) {
+          clearInterval(waitinterval);
+          if (!window.UnitySceneLoaded) {
+            window.UnitySceneLoaded = true;
+            console.log("HaH: unityLoaded Initialising!");
+          }
+        }
+      }, 500);
     }
     this.scene = document.querySelector("a-scene");
     if(!this.scene){
@@ -1135,13 +1143,14 @@ if(window.isBanter){ // Check if the window is in Banter mode
   let waitingforunity = true; // Flag to check if we are waiting for Unity to load
   var waitinterval; // Variable to hold the interval ID
   if (waitingforunity) { // If we are waiting for Unity to load
-    console.log("SCENE: Waiting for Unity to load..."); // Log that we are waiting for Unity to load
+    console.log("HaH: Waiting for Unity to load..."); // Log that we are waiting for Unity to load
     waitinterval = setInterval(function() { // Set an interval to check if Unity has loaded
-      if (scene.unityLoaded) { waitingforunity = false; clearInterval(waitinterval); // Clear the interval if Unity has loaded
+      if (scene.unityLoaded) {  // If Unity has loaded
+        waitingforunity = false; // Set the waiting flag to false now Unity has loaded
+        clearInterval(waitinterval); // Clear the interval if Unity has loaded
         if (!window.UnitySceneLoaded) { // This ensures the scene is only initialized once
           window.UnitySceneLoaded = true; // Set the Unity scene loaded flag to true
-          console.log("SCENE: unityLoaded Initialising!"); // Log that Unity has loaded and we are initializing the scene
-          window.loadDoneCallback = () => window.banterLoaded = true;
+          console.log("HaH: unityLoaded Initialising!"); // Log that Unity has loaded and we are initializing the scene
         }; 
       };
     }, 1000); // Check every second if Unity has loaded
