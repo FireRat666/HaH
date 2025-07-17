@@ -67,17 +67,24 @@ class HahGameSystem {
     }
     this.scene = document.querySelector("a-scene");
     if(!this.scene){
+      console.error("No a-scene found!");
       return;
     }
     if(!window.user) {
       this.generateGuestUser();
     }
+    this.log("Calling getTableHTML...");
     this.parent = this.getTableHTML();
+    this.log("getTableHTML done, waiting 1s...");
     await this.wait(1);
+    this.log("Calling setupTable...");
     await this.setupTable();
+    this.log("setupTable done, calling setupWebsocket...");
     await this.setupWebsocket();
+    this.log("setupWebsocket done, waiting 1s...");
     await this.wait(1);
     this.parent.setAttribute("scale", "1 1 1");
+    this.log("Game table should now be visible.");
     await this.wait(1);
   }
   wait(seconds) {
@@ -1119,23 +1126,37 @@ class HahGameSystem {
 if(window.isBanter) {
   window.loadDoneCallback = () => window.banterLoaded = true;
 }
+
 if (!window.gameSystem) {
-  const initGame = () => {
+  function initGame() {
     try {
       window.gameSystem = new HahGameSystem();
     } catch (error) {
       console.error("Error initializing HahGameSystem:", error);
     }
-  };
-
-  if (document.querySelector('a-scene').hasLoaded) {
-      console.log("A-Frame scene already loaded, initializing game.");
-      initGame();
-  } else {
-      console.log("A-Frame scene not yet loaded, waiting for 'loaded' event.");
-      document.querySelector('a-scene').addEventListener('loaded', function () {
-          console.log("A-Frame scene loaded, initializing game.");
-          initGame();
-      });
   }
+
+  function waitForASceneAndInit() {
+    function tryInit() {
+      const scene = document.querySelector('a-scene');
+      if (!scene) {
+        setTimeout(tryInit, 100);
+        return;
+      }
+      if (scene.hasLoaded) {
+        console.log("A-Frame scene already loaded, initializing game.");
+        initGame();
+      } else {
+        console.log("A-Frame scene not yet loaded, waiting for 'loaded' event.");
+        scene.addEventListener('loaded', function onLoaded() {
+          console.log("A-Frame scene loaded, initializing game.");
+          scene.removeEventListener('loaded', onLoaded);
+          initGame();
+        });
+      }
+    }
+    tryInit();
+  }
+
+  waitForASceneAndInit();
 }
