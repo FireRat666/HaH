@@ -58,7 +58,10 @@ class HahGameSystem {
     this.isConfirmationDialogOpen = false;
     this.playerSelections = {};
     this.currentScript = hahCurrentScript;
-    this.urlParams = new URLSearchParams(window.location.search);
+    // this.urlParams = new URLSearchParams(window.location.search);
+    const src = this.currentScript.getAttribute('src');
+    const queryString = src && src.includes('?') ? src.split('?')[1] : '';
+    this.urlParams = new URLSearchParams(queryString);
     this.parseParams();
     this.log("Initializing new game system.");
     if(window.isBanter) {
