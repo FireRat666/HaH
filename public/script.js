@@ -63,6 +63,7 @@ class HahGameSystem {
     const queryString = src && src.includes('?') ? src.split('?')[1] : '';
     this.urlParams = new URLSearchParams(queryString);
     this.parseParams();
+    this.log("Params after parsing:", this.params);
     this.log("Initializing new game system.");
     if(window.isBanter) {
       await window.AframeInjection.waitFor(window, 'user');
