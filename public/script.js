@@ -54,17 +54,19 @@ class HahGameSystem {
   }
 
   async init() {
+    console.log("Init Called.");
     // This variable tracks whether a confirmation dialog (leave game, dump hand) is open.
     this.isConfirmationDialogOpen = false;
     this.playerSelections = {};
     this.currentScript = hahCurrentScript;
+    console.log("Current script:", this.currentScript);
     // this.urlParams = new URLSearchParams(window.location.search);
     const src = this.currentScript.getAttribute('src');
     const queryString = src && src.includes('?') ? src.split('?')[1] : '';
     this.urlParams = new URLSearchParams(queryString);
     this.parseParams();
-    this.log("Params after parsing:", this.params);
-    this.log("Initializing new game system.");
+    console.log("Params after parsing:", this.params);
+    console.log("Initializing new game system.");
     if(window.isBanter) {
       await window.AframeInjection.waitFor(window, 'user');
       await window.AframeInjection.waitFor(window, 'banterLoaded');
@@ -77,18 +79,18 @@ class HahGameSystem {
     if(!window.user) {
       this.generateGuestUser();
     }
-    this.log("Calling getTableHTML...");
+    console.log("Calling getTableHTML...");
     this.parent = this.getTableHTML();
-    this.log("getTableHTML done, waiting 1s...");
+    console.log("getTableHTML done, waiting 1s...");
     await this.wait(1);
-    this.log("Calling setupTable...");
+    console.log("Calling setupTable...");
     await this.setupTable();
-    this.log("setupTable done, calling setupWebsocket...");
+    console.log("setupTable done, calling setupWebsocket...");
     await this.setupWebsocket();
-    this.log("setupWebsocket done, waiting 1s...");
+    console.log("setupWebsocket done, waiting 1s...");
     await this.wait(1);
     this.parent.setAttribute("scale", "1 1 1");
-    this.log("Game table should now be visible.");
+    console.log("Game table should now be visible.");
     await this.wait(1);
   }
   wait(seconds) {
