@@ -70,7 +70,7 @@ class HahGameSystem {
     if (window.isBanter) {
       this.log("Banter mode detected - waiting for UnitySceneLoaded...");
       const scene = BS.BanterScene.GetInstance();
-      var waitinterval = setInterval(function() {
+      var waitinterval = setInterval(() => {
         if (scene.unityLoaded) {
           clearInterval(waitinterval);
           if (!window.UnitySceneLoaded) {
