@@ -54,28 +54,28 @@ class HahGameSystem {
   }
 
   async init() {
-    console.log("Init Called.");
+    this.log("Init Called.");
     // This variable tracks whether a confirmation dialog (leave game, dump hand) is open.
     this.isConfirmationDialogOpen = false;
     this.playerSelections = {};
     this.currentScript = hahCurrentScript;
-    console.log("Current script:", this.currentScript);
+    this.log("Current script:", this.currentScript);
     // this.urlParams = new URLSearchParams(window.location.search);
     const src = this.currentScript.getAttribute('src');
     const queryString = src && src.includes('?') ? src.split('?')[1] : '';
     this.urlParams = new URLSearchParams(queryString);
     this.parseParams();
-    console.log("Params after parsing:", this.params);
-    console.log("Initializing new game system.");
+    this.log("Params after parsing:", this.params);
+    this.log("Initializing new game system.");
     if (window.isBanter) {
-      console.log("Banter mode detected - waiting for UnitySceneLoaded...");
+      this.log("Banter mode detected - waiting for UnitySceneLoaded...");
       const scene = BS.BanterScene.GetInstance();
       var waitinterval = setInterval(function() {
         if (scene.unityLoaded) {
           clearInterval(waitinterval);
           if (!window.UnitySceneLoaded) {
             window.UnitySceneLoaded = true;
-            console.log("HaH: unityLoaded Initialising!");
+            this.log("HaH: unityLoaded Initialising!");
           }
         }
       }, 500);
@@ -88,18 +88,18 @@ class HahGameSystem {
     if(!window.user) {
       this.generateGuestUser();
     }
-    console.log("Calling getTableHTML...");
+    this.log("Calling getTableHTML...");
     this.parent = this.getTableHTML();
-    console.log("getTableHTML done, waiting 1s...");
+    this.log("getTableHTML done, waiting 1s...");
     await this.wait(1);
-    console.log("Calling setupTable...");
+    this.log("Calling setupTable...");
     await this.setupTable();
-    console.log("setupTable done, calling setupWebsocket...");
+    this.log("setupTable done, calling setupWebsocket...");
     await this.setupWebsocket();
-    console.log("setupWebsocket done, waiting 1s...");
+    this.log("setupWebsocket done, waiting 1s...");
     await this.wait(1);
     this.parent.setAttribute("scale", "1 1 1");
-    console.log("Game table should now be visible.");
+    this.log("Game table should now be visible.");
     await this.wait(1);
   }
   wait(seconds) {
