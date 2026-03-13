@@ -1148,7 +1148,7 @@ if (!window.gameSystem) {
     } else {
       console.log("HaH: initializing HahGameSystem on Loaded Event");
       window.addEventListener("unity-loaded", initGame);
-      window.addEventListener("bs-loaded", initGame);
+      // window.addEventListener("bs-loaded", initGame);
     }
   }
 
