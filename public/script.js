@@ -56,6 +56,7 @@ class HahGameSystem {
   async init() {
     this.log("Init Called.");
     this.isBanter = !!window.BS;
+    this.log("isBanter:", this.isBanter, "window.user:", window.user);
     this.isConfirmationDialogOpen = false;
     this.playerSelections = {};
     this.currentScript = hahCurrentScript;
@@ -125,7 +126,7 @@ class HahGameSystem {
         const instance = this.params.instance;
         const user = window.user;
         const deck = this.params.deck;
-        this.log(`Sending "init" message with deck: "${deck}"`);
+        this.log(`Sending "init" message with deck: "${deck}"`, "User:", user);
         this.send("init", {instance, user, deck, debug: this.isDebug});
         this.log("Connected to game server.");
         resolve();
@@ -905,8 +906,9 @@ class HahGameSystem {
     this.czarPreviewAndSelect(players, game);
   }
   setText(ele, value) {
+    if(!ele) return;
     const wrapped = typeof value === "string" ? this.wrapText(value, this.MaxCharsPerLine) : value;
-    if(this.isBanter) {
+    if(this.isBanter && window.setText && ele.object3D) {
       window.setText(ele.object3D.id, wrapped);
     }else{
       ele.setAttribute("value", wrapped);
