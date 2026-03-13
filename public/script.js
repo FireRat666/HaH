@@ -55,6 +55,7 @@ class HahGameSystem {
 
   async init() {
     this.log("Init Called.");
+    this.isBanter = !!window.BS;
     this.isConfirmationDialogOpen = false;
     this.playerSelections = {};
     this.currentScript = hahCurrentScript;
