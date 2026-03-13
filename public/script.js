@@ -55,31 +55,20 @@ class HahGameSystem {
 
   async init() {
     this.log("Init Called.");
-    // This variable tracks whether a confirmation dialog (leave game, dump hand) is open.
     this.isConfirmationDialogOpen = false;
     this.playerSelections = {};
     this.currentScript = hahCurrentScript;
     this.log("Current script:", this.currentScript);
-    // this.urlParams = new URLSearchParams(window.location.search);
     const src = this.currentScript.getAttribute('src');
     const queryString = src && src.includes('?') ? src.split('?')[1] : '';
     this.urlParams = new URLSearchParams(queryString);
+    
+    await this.waitForEnvironmentReady();
+
     this.parseParams();
     this.log("Params after parsing:", this.params);
     this.log("Initializing new game system.");
-    if (window.isBanter) {
-      this.log("Banter mode detected - waiting for UnitySceneLoaded...");
-      const scene = BS.BanterScene.GetInstance();
-      var waitinterval = setInterval(() => {
-        if (scene.unityLoaded) {
-          clearInterval(waitinterval);
-          if (!window.UnitySceneLoaded) {
-            window.UnitySceneLoaded = true;
-            this.log("HaH: unityLoaded Initialising!");
-          }
-        }
-      }, 500);
-    }
+
     this.scene = document.querySelector("a-scene");
     if(!this.scene){
       console.error("No a-scene found!");
@@ -102,6 +91,47 @@ class HahGameSystem {
     this.log("Game table should now be visible.");
     await this.wait(1);
   }
+
+  waitForEnvironmentReady() {
+    this.log("Determining environment...");
+
+    const banterReadyPromise = new Promise(resolve => {
+      const check = () => {
+        const isBanterEnvironment =
+          typeof BS !== 'undefined' &&
+          window.user &&
+          window.user.id &&
+          window.user.name;
+
+        if (isBanterEnvironment) {
+          this.log("Banter environment detected and ready.");
+          resolve(true); // It's Banter
+        } else {
+          setTimeout(check, 100); // Check again shortly
+        }
+      };
+      check();
+    });
+
+    const timeoutPromise = new Promise(resolve => {
+      setTimeout(() => {
+        // This timeout will race against the banterReadyPromise.
+        // If the timeout wins, we assume it's not a Banter environment.
+        this.log("Timeout reached, assuming non-Banter environment.");
+        resolve(false); // It's not Banter
+      }, 10000); // 10-second timeout
+    });
+
+    return Promise.race([banterReadyPromise, timeoutPromise])
+      .then(isBanter => {
+        this.isBanter = isBanter;
+        if (this.isBanter && !window.UnitySceneLoaded) {
+            window.UnitySceneLoaded = true;
+        }
+        this.log(`Environment resolved: isBanter = ${this.isBanter}`);
+      });
+  }
+  
   wait(seconds) {
     return new Promise(resolve => setTimeout(resolve, seconds * 1000));
   }
@@ -197,7 +227,7 @@ class HahGameSystem {
         this.send('leave-game');
       }, "Leave game?", { hideAllUI: true });
     })); 
-    if(window.isBanter) {
+    if(this.isBanter) {
       Array.from(this.parent.querySelector("[look-at]")).forEach(ele => {
         ele.removeAttribute("look-at");
       });
@@ -917,10 +947,8 @@ class HahGameSystem {
   }
   setText(ele, value) {
     const wrapped = typeof value === "string" ? this.wrapText(value, this.MaxCharsPerLine) : value;
-    if(window.isBanter) {
-      setTimeout(()=>{
-        window.setText(ele.object3D.id, wrapped);
-      }, 500);
+    if(this.isBanter) {
+      window.setText(ele.object3D.id, wrapped);
     }else{
       ele.setAttribute("value", wrapped);
     }
@@ -1138,24 +1166,6 @@ class HahGameSystem {
     return parent;
   }
 }
-if(window.isBanter){ // Check if the window is in Banter mode
-  const scene = BS.BanterScene.GetInstance(); // Get the BanterScene instance
-  let waitingforunity = true; // Flag to check if we are waiting for Unity to load
-  var waitinterval; // Variable to hold the interval ID
-  if (waitingforunity) { // If we are waiting for Unity to load
-    console.log("HaH: Waiting for Unity to load..."); // Log that we are waiting for Unity to load
-    waitinterval = setInterval(function() { // Set an interval to check if Unity has loaded
-      if (scene.unityLoaded) {  // If Unity has loaded
-        waitingforunity = false; // Set the waiting flag to false now Unity has loaded
-        clearInterval(waitinterval); // Clear the interval if Unity has loaded
-        if (!window.UnitySceneLoaded) { // This ensures the scene is only initialized once
-          window.UnitySceneLoaded = true; // Set the Unity scene loaded flag to true
-          console.log("HaH: unityLoaded Initialising!"); // Log that Unity has loaded and we are initializing the scene
-        }; 
-      };
-    }, 1000); // Check every second if Unity has loaded
-  };
-};
 
 if (!window.gameSystem) {
   function initGame() {
