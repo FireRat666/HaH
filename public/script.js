@@ -119,7 +119,7 @@ class HahGameSystem {
         // If the timeout wins, we assume it's not a Banter environment.
         this.log("Timeout reached, assuming non-Banter environment.");
         resolve(false); // It's not Banter
-      }, 10000); // 10-second timeout
+      }, 20000); // 20-second timeout
     });
 
     return Promise.race([banterReadyPromise, timeoutPromise])
