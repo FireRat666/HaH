@@ -1130,7 +1130,9 @@ class HahGameSystem {
 
 if (!window.gameSystem) {
   function initGame() {
+    if (window.gameSystem) return;
     setTimeout(async () => {
+      if (window.gameSystem) return;
       try {
         console.log("HaH: Attempting to initialize HahGameSystem now");
         window.gameSystem = new HahGameSystem();
@@ -1147,8 +1149,16 @@ if (!window.gameSystem) {
       initGame();
     } else {
       console.log("HaH: initializing HahGameSystem on Loaded Event");
+      
+      const originalLog = console.log;
+      console.log = (...args) => {
+          originalLog.apply(console, args);
+          if (args.some(arg => typeof arg === 'string' && arg.includes("Unity Scene Loaded."))) {
+             initGame();
+          }
+      };
+
       window.addEventListener("unity-loaded", initGame);
-      // window.addEventListener("bs-loaded", initGame);
     }
   }
 
