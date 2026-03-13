@@ -1127,11 +1127,13 @@ class HahGameSystem {
 
 if (!window.gameSystem) {
   function initGame() {
-    try {
-      window.gameSystem = new HahGameSystem();
-    } catch (error) {
-      console.error("Error initializing HahGameSystem:", error);
-    }
+    setTimeout(async () => {
+      try {
+        window.gameSystem = new HahGameSystem();
+      } catch (error) {
+        console.error("Error initializing HahGameSystem:", error);
+      }
+    }, 5000);
   }
 
   function waitForASceneAndInit() {
