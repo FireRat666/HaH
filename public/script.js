@@ -1129,6 +1129,7 @@ if (!window.gameSystem) {
   function initGame() {
     setTimeout(async () => {
       try {
+        console.log("HaH: Attempting to initialize HahGameSystem now");
         window.gameSystem = new HahGameSystem();
       } catch (error) {
         console.error("Error initializing HahGameSystem:", error);
