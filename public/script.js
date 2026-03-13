@@ -62,8 +62,6 @@ class HahGameSystem {
     const src = this.currentScript.getAttribute('src');
     const queryString = src && src.includes('?') ? src.split('?')[1] : '';
     this.urlParams = new URLSearchParams(queryString);
-    
-    await this.waitForEnvironmentReady();
 
     this.parseParams();
     this.log("Params after parsing:", this.params);
@@ -79,59 +77,19 @@ class HahGameSystem {
     }
     this.log("Calling getTableHTML...");
     this.parent = this.getTableHTML();
-    this.log("getTableHTML done, waiting 1s...");
-    await this.wait(1);
+    this.log("getTableHTML done, waiting 2s...");
+    await this.wait(2);
     this.log("Calling setupTable...");
     await this.setupTable();
     this.log("setupTable done, calling setupWebsocket...");
     await this.setupWebsocket();
-    this.log("setupWebsocket done, waiting 1s...");
-    await this.wait(1);
+    this.log("setupWebsocket done, waiting 2s...");
+    await this.wait(2);
     this.parent.setAttribute("scale", "1 1 1");
     this.log("Game table should now be visible.");
-    await this.wait(1);
+    await this.wait(2);
   }
 
-  waitForEnvironmentReady() {
-    this.log("Determining environment...");
-
-    const banterReadyPromise = new Promise(resolve => {
-      const check = () => {
-        const isBanterEnvironment =
-          typeof BS !== 'undefined' &&
-          window.user &&
-          window.user.id &&
-          window.user.name;
-
-        if (isBanterEnvironment) {
-          this.log("Banter environment detected and ready.");
-          resolve(true); // It's Banter
-        } else {
-          setTimeout(check, 100); // Check again shortly
-        }
-      };
-      check();
-    });
-
-    const timeoutPromise = new Promise(resolve => {
-      setTimeout(() => {
-        // This timeout will race against the banterReadyPromise.
-        // If the timeout wins, we assume it's not a Banter environment.
-        this.log("Timeout reached, assuming non-Banter environment.");
-        resolve(false); // It's not Banter
-      }, 20000); // 20-second timeout
-    });
-
-    return Promise.race([banterReadyPromise, timeoutPromise])
-      .then(isBanter => {
-        this.isBanter = isBanter;
-        if (this.isBanter && !window.UnitySceneLoaded) {
-            window.UnitySceneLoaded = true;
-        }
-        this.log(`Environment resolved: isBanter = ${this.isBanter}`);
-      });
-  }
-  
   wait(seconds) {
     return new Promise(resolve => setTimeout(resolve, seconds * 1000));
   }
@@ -1177,25 +1135,13 @@ if (!window.gameSystem) {
   }
 
   function waitForASceneAndInit() {
-    function tryInit() {
-      const scene = document.querySelector('a-scene');
-      if (!scene) {
-        setTimeout(tryInit, 100);
-        return;
-      }
-      if (scene.hasLoaded) {
-        console.log("A-Frame scene already loaded, initializing game.");
-        initGame();
-      } else {
-        console.log("A-Frame scene not yet loaded, waiting for 'loaded' event.");
-        scene.addEventListener('loaded', function onLoaded() {
-          console.log("A-Frame scene loaded, initializing game.");
-          scene.removeEventListener('loaded', onLoaded);
-          initGame();
-        });
-      }
+    // --- Check for BS availability ---
+    if (window.BS) {
+      initGame();
+    } else {
+      window.addEventListener("unity-loaded", initGame);
+      window.addEventListener("bs-loaded", initGame);
     }
-    tryInit();
   }
 
   waitForASceneAndInit();
