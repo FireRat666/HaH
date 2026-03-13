@@ -1136,7 +1136,7 @@ if (!window.gameSystem) {
 
   function waitForASceneAndInit() {
     // --- Check for BS availability ---
-    if (window.user && window.user.id) {
+    if (window.BS) {
       console.log("HaH: initializing HahGameSystem Immediately");
       initGame();
     } else {
