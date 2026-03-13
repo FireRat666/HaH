@@ -960,7 +960,7 @@ class HahGameSystem {
         this.syncGame(json.data);
         break;
       case 'error':
-        alert(json.data);
+        console.error(json.data);
         break;
       case 'play-sound':
         this.playSound(json.data);
