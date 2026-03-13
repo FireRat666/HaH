@@ -1136,9 +1136,11 @@ if (!window.gameSystem) {
 
   function waitForASceneAndInit() {
     // --- Check for BS availability ---
-    if (window.BS) {
+    if (window.user && window.user.id) {
+      console.log("HaH: initializing HahGameSystem Immediately");
       initGame();
     } else {
+      console.log("HaH: initializing HahGameSystem on Loaded Event");
       window.addEventListener("unity-loaded", initGame);
       window.addEventListener("bs-loaded", initGame);
     }
