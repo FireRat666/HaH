@@ -6,7 +6,7 @@
     const MAX_PLAYERS = 10;
     const MAX_HAND_CARDS = 12;
     const MAX_SUPPORTED_RESPONSES = 3;
-    const STATE_KEY = "hah_game_state";
+    let STATE_KEY = "hah_game";
     const IDLE_TIMEOUT_SECONDS = 90;
     const DISCONNECT_TIMEOUT_SECONDS = 45;
 
@@ -36,11 +36,11 @@
             this.params = {
                 position: getParam("position", "0 0 0"),
                 rotation: getParam("rotation", "0 0 0"),
-                instance: getParam("instance", "demo-game"),
+                instance: getParam("instance", "hah_game"),
                 deck: getParam("deck", "main"),
-                debug: getParam("debug", "false") === "true",
-                oneForEachInstance: getParam("one-for-each-instance", "false") === "true"
+                debug: getParam("debug", "false") === "true"
             };
+            STATE_KEY = this.params.instance;
         }
 
         wrapText(text, maxChars = 19) {
@@ -86,10 +86,6 @@
         async init() {
             if (scene) return;
             scene = BS.BanterScene.GetInstance();
-            
-            if (this.params.oneForEachInstance && scene.localUser?.instance) {
-                this.params.instance += scene.localUser.instance;
-            }
 
             this.log("Initializing Serverless HAH...");
             await this.buildEnvironment();
