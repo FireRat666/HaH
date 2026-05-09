@@ -1,0 +1,31 @@
+<html>
+  <head>
+    <meta property="og:title" content="Holograms Against Humanity.">
+    <meta property="og:description" content="Holograms Against Humanity For Banter.">
+  </head>
+  <body>
+      <script src="/hah.js" 
+              rotation="0 0 0" debug="true" position="0 0 2" instance="example1"></script>
+      <script>
+        async function createFloor() {
+            const floor = await new BS.GameObject("BanterFloor").Async();
+            const width = 30; const height = 0.1; const depth = 30;
+
+            const geoArgs = [BS.GeometryType.BoxGeometry, null, width, height, depth, 1, 1, 1, 0.5, 24, 0, 6.28, 0, 6.28, 8, false, 0.5, 0.5, 0, 1, 24, 8, 0.4, 16, 6.28, 2, 3, 5, 5, 0, ""];
+            await floor.AddComponent(new BS.BanterGeometry(...geoArgs));
+
+            const texUrl = "https://cdn.aframe.io/a-painter/images/floor.jpg";
+            await floor.AddComponent(new BS.BanterMaterial("Unlit/Texture", texUrl, new BS.Vector4(1, 1, 1, 1), BS.MaterialSide.Front, true));
+            await floor.AddComponent(new BS.BoxCollider(false, new BS.Vector3(0, 0, 0), new BS.Vector3(width, height, depth)));
+
+            let transform = floor.GetComponent(BS.ComponentType.Transform);
+            if (!transform) transform = await floor.AddComponent(new BS.Transform());
+            transform.localPosition = new BS.Vector3(0, -0.05, 0); // Flush with 0
+        }
+
+        window.addEventListener("bs-loaded", async () => {
+            createFloor();
+        });
+      </script>
+  </body>
+</html>

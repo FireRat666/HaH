@@ -2,14 +2,16 @@
     let scene;
     let currentScript = document.currentScript;
 
-    const WEBSOCKET_URL = "wss://hah.firer.at/";
+    const DOMAIN = "https://banter-hah.firer.at/";
     const MAX_PLAYERS = 10;
     const MAX_HAND_CARDS = 12;
     const MAX_SUPPORTED_RESPONSES = 3;
+    const STATE_KEY = "hah_game_state";
+    const IDLE_TIMEOUT_SECONDS = 90;
+    const DISCONNECT_TIMEOUT_SECONDS = 45;
 
     class BullshcriptGame {
         constructor() {
-            this.ws = null;
             this.gameState = null;
             this.selectedCardIds = [];
             this.hasSubmittedThisRound = false;
@@ -21,6 +23,7 @@
             this.isConfirmationDialogOpen = false;
             this.confirmCallback = null;
             this.isMuted = false;
+            this.masterDeck = null; // Original deck data loaded from JSON
 
             const urlParams = new URLSearchParams(window.location.search);
             const getParam = (attr, defaultValue) => {
@@ -88,7 +91,7 @@
                 this.params.instance += scene.localUser.instance;
             }
 
-            this.log("Initializing Banter Native Rewrite...");
+            this.log("Initializing Serverless HAH...");
             await this.buildEnvironment();
 
             if (!scene.unityLoaded) {
@@ -98,8 +101,469 @@
                 });
             }
 
-            await this.setupWebsocket();
-            setInterval(() => this.tickTimers(), 1000);
+            // Load deck data
+            await this.loadDeck(this.params.deck);
+
+            // Listen for state changes
+            scene.On("space-state-changed", this.onSpaceStateChanged.bind(this));
+            scene.On("user-left", this.onSpaceUserLeft.bind(this));
+
+            // Initial sync
+            this.sync();
+
+            setInterval(() => this.tick(), 1000);
+        }
+
+        async loadDeck(deckName) {
+            try {
+                this.log(`Loading deck: ${deckName}`);
+                const response = await fetch(`${DOMAIN}decks/${deckName}.json`);
+                if (!response.ok) throw new Error(`Failed to load deck: ${response.statusText}`);
+                const data = await response.json();
+                
+                // Process deck like server.js did
+                let cardIdCounter = 0;
+                this.masterDeck = {
+                    black: data.black.map(card => ({ 
+                        ...(typeof card === 'string' ? { text: card } : card), 
+                        _id: `b_${cardIdCounter++}`,
+                        numResponses: (typeof card === 'object' && card.numResponses) ? card.numResponses : 1 
+                    })),
+                    white: data.white.map(card => ({ 
+                        ...(typeof card === 'string' ? { text: card } : card), 
+                        _id: `w_${cardIdCounter++}` 
+                    }))
+                };
+                this.log("Deck loaded successfully.");
+            } catch (err) {
+                this.log("Error loading deck:", err);
+                // If it fails, maybe try main.json as fallback if we didn't already
+                if (deckName !== 'main') await this.loadDeck('main');
+            }
+        }
+
+        onSpaceStateChanged(e) {
+            if (e.detail.changes.some(c => c.property === STATE_KEY)) {
+                this.sync();
+            }
+        }
+
+        onSpaceUserLeft(e) {
+            const userId = e.detail.uid;
+            if (this.gameState && this.gameState.players[userId]) {
+                this.log(`Player ${userId} left the space.`);
+                // Host will handle the removal logic in driveHostLogic
+            }
+        }
+
+        sync() {
+            if (!scene || !scene.spaceState) return;
+            const raw = scene.spaceState.public[STATE_KEY];
+            let newState;
+            try {
+                newState = raw ? JSON.parse(raw) : null;
+            } catch (err) {
+                this.log("Error parsing state:", err);
+                return;
+            }
+
+            if (!newState) {
+                if (!this.gameState) {
+                    this.gameState = this.getDefaultState();
+                }
+            } else {
+                if (JSON.stringify(this.gameState) !== JSON.stringify(newState)) {
+                    const prevWinner = this.gameState?.winner;
+                    this.gameState = newState;
+                    if (prevWinner && !this.gameState.winner) {
+                        this.selectedCardIds = [];
+                    }
+                }
+            }
+            this.updateUI();
+        }
+
+        getDefaultState() {
+            return {
+                players: {},
+                waitingRoom: [],
+                czar: null,
+                currentBlackCard: null,
+                currentPreviewResponse: 0,
+                showBlack: false,
+                blackDeck: [],
+                whiteDeck: [],
+                blackDiscard: [],
+                whiteDiscard: [],
+                isStarted: false,
+                winner: null,
+                round: 0,
+                currentHostUid: null,
+                lastAction: null
+            };
+        }
+
+        async updateState(patch) {
+            if (!this.gameState) return;
+            Object.assign(this.gameState, patch);
+            await scene.SetPublicSpaceProps({ [STATE_KEY]: JSON.stringify(this.gameState) });
+            this.sync();
+        }
+
+        async sendAction(action, data = {}) {
+            if (!scene?.localUser || !scene?.spaceState) return;
+
+            const raw = scene.spaceState.public[STATE_KEY];
+            let state;
+            try {
+                state = raw ? JSON.parse(raw) : this.getDefaultState();
+            } catch (err) {
+                state = this.getDefaultState();
+            }
+
+            const updated = this.applyGameLogic(state, action, scene.localUser.uid, scene.localUser.name, data);
+            if (updated) {
+                await scene.SetPublicSpaceProps({ [STATE_KEY]: JSON.stringify(updated) });
+                this.sync();
+            }
+        }
+
+        isHost() {
+            if (!scene || !scene.localUser) return false;
+            if (!this.gameState || !this.gameState.currentHostUid) {
+                const uids = Object.keys(scene.users || {}).sort();
+                return uids.length > 0 && uids[0] === scene.localUser.uid;
+            }
+            return this.gameState.currentHostUid === scene.localUser.uid;
+        }
+
+        tick() {
+            if (!this.gameState) return;
+            if (this.isHost()) {
+                this.driveHostLogic();
+            }
+            this.updateUI();
+        }
+
+        startDeckAnimation() {
+            if (this._deckAnimRunning) return; // only start once
+            this._deckAnimRunning = true;
+
+            const baseY = 1.15;
+            const spinSpeed = 18; // degrees per second for Y spin
+            let lastTime = performance.now();
+            let rotY = 0;
+
+            // Pre-allocate vectors once to avoid GC pressure at 72fps on Quest
+            const pos = new BS.Vector3(0, baseY, 0);
+            const rot = new BS.Vector3(0, 0, 0);
+
+            const loop = (now) => {
+                if (!this.ui.deckObj) return; // stop if object destroyed
+
+                const dt = Math.min((now - lastTime) / 1000, 0.1); // delta seconds, capped
+                lastTime = now;
+
+                // Continuous Y spin
+                rotY = (rotY + spinSpeed * dt) % 360;
+
+                // Gentle bob using absolute time so it's always smooth
+                const t = now / 1000;
+                pos.y = baseY + Math.sin(t * 1.2) * 0.04;
+
+                // Smooth lerp toward flip target on Z axis
+                // Z=0 when idle, Z=180 when game is started
+                const targetRotZ = this.gameState?.isStarted ? 0 : 180;
+                this._deckRotZ += (targetRotZ - this._deckRotZ) * Math.min(dt * 5, 1);
+
+                // Mutate pre-allocated vectors in-place (no GC allocation per frame)
+                rot.y = rotY;
+                rot.z = this._deckRotZ;
+
+                this.ui.deckObj.transform.localPosition = pos;
+                this.ui.deckObj.transform.localEulerAngles = rot;
+
+                requestAnimationFrame(loop);
+            };
+
+            requestAnimationFrame(loop);
+        }
+
+        driveHostLogic() {
+            const now = Date.now();
+            let changed = false;
+            const patch = {};
+
+            // 1. Host Assignment
+            if (!this.gameState.currentHostUid || !scene.users[this.gameState.currentHostUid]) {
+                const uids = Object.keys(scene.users || {}).sort();
+                if (uids.length > 0 && uids[0] !== this.gameState.currentHostUid) {
+                    patch.currentHostUid = uids[0];
+                    changed = true;
+                }
+            }
+
+            // 2. Player Removal (Inactivity/Disconnect)
+            const playerIds = Object.keys(this.gameState.players);
+            playerIds.forEach(uid => {
+                const p = this.gameState.players[uid];
+                const isConnected = !!scene.users[uid];
+
+                // Update connected status in state
+                if (p.connected !== isConnected) {
+                    p.connected = isConnected;
+                    if (!isConnected) p.disconnectTime = now;
+                    else p.disconnectTime = 0;
+                    changed = true;
+                }
+
+                // Disconnect Kick
+                if (!isConnected && p.disconnectTime > 0) {
+                    if (now - p.disconnectTime > DISCONNECT_TIMEOUT_SECONDS * 1000) {
+                        this.log(`Kicking ${p.name} for disconnect.`);
+                        this.applyGameLogic(this.gameState, "leave-game", uid, p.name, {});
+                        changed = true;
+                    }
+                }
+
+                // Inactivity Kick (Only if game started)
+                if (this.gameState.isStarted && p.inactivityKickTime > 0) {
+                    if (now > p.inactivityKickTime) {
+                        this.log(`Kicking ${p.name} for inactivity.`);
+                        this.applyGameLogic(this.gameState, "leave-game", uid, p.name, {});
+                        changed = true;
+                    }
+                }
+            });
+
+            // 3. Auto-start next round after winner chosen
+            if (this.gameState.winner && this.gameState.winnerTime) {
+                if (now - this.gameState.winnerTime > 5000) {
+                    this.log("Auto-starting next round...");
+                    this.sendAction("start-game");
+                }
+            }
+
+            if (changed) {
+                this.updateState(patch);
+            }
+        }
+
+        initializeNewRound(state) {
+            const players = Object.keys(state.players);
+            if (players.length < 3) {
+                state.isStarted = false;
+                return state;
+            }
+
+            // Czar Rotation
+            if (!state.czar || !state.players[state.czar]) {
+                state.czar = players[0];
+            } else {
+                const currentIdx = players.indexOf(state.czar);
+                state.czar = players[(currentIdx + 1) % players.length];
+            }
+
+            // Reset round state
+            state.showBlack = false;
+            state.winner = null;
+            state.currentPreviewResponse = 0;
+            state.round++;
+
+            // Clear inactivity timers
+            players.forEach(uid => {
+                const p = state.players[uid];
+                p.selected = [];
+                p.inactivityKickTime = 0;
+                
+                // Refill Hand
+                if (p.wantsNewHand) {
+                    if (p.cards) state.whiteDiscard.push(...p.cards.filter(Boolean));
+                    p.cards = [];
+                    p.wantsNewHand = false;
+                }
+                p.hasRequestedHandDumpThisRound = false;
+
+                // Draw up to 12
+                while (p.cards.length < 12) {
+                    const card = this.drawWhiteCard(state);
+                    if (!card) break;
+                    p.cards.push(card);
+                }
+            });
+
+            // Draw Black Card
+            state.currentBlackCard = this.drawBlackCard(state);
+            state.isStarted = true;
+
+            // Set Czar inactivity timer to reveal black card
+            if (state.players[state.czar]) {
+                state.players[state.czar].inactivityKickTime = Date.now() + (IDLE_TIMEOUT_SECONDS * 1000);
+            }
+
+            this.playSound("gameStart.ogg");
+            return state;
+        }
+
+        drawWhiteCard(state) {
+            if (state.whiteDeck.length === 0) {
+                if (state.whiteDiscard.length === 0) {
+                    // Reshuffle from master
+                    state.whiteDeck = [...this.masterDeck.white].sort(() => Math.random() - 0.5);
+                } else {
+                    state.whiteDeck = [...state.whiteDiscard].sort(() => Math.random() - 0.5);
+                    state.whiteDiscard = [];
+                }
+            }
+            return state.whiteDeck.pop();
+        }
+
+        drawBlackCard(state) {
+            if (state.blackDeck.length === 0) {
+                if (state.blackDiscard.length === 0) {
+                    state.blackDeck = [...this.masterDeck.black].sort(() => Math.random() - 0.5);
+                } else {
+                    state.blackDeck = [...state.blackDiscard].sort(() => Math.random() - 0.5);
+                    state.blackDiscard = [];
+                }
+            }
+            const card = state.blackDeck.pop();
+            if (card) state.blackDiscard.push(card);
+            return card;
+        }
+
+        applyGameLogic(state, action, userId, userName, data) {
+            this.log(`Action: ${action} by ${userName}`);
+            
+            const players = state.players;
+            const player = players[userId];
+
+            switch (action) {
+                case "claim-host":
+                    state.currentHostUid = userId;
+                    break;
+
+                case "join-game":
+                    if (!player && Object.keys(players).length < MAX_PLAYERS) {
+                        const occupied = new Set(Object.values(players).map(p => p.position));
+                        let pos = -1;
+                        const available = [0,1,2,3,4,5,6,7,8,9].filter(p => !occupied.has(p));
+                        if (available.length > 0) {
+                            pos = available[Math.floor(Math.random() * available.length)];
+                        }
+
+                        players[userId] = {
+                            _id: userId,
+                            name: userName,
+                            trophies: 0,
+                            cards: [],
+                            selected: [],
+                            position: pos,
+                            connected: true,
+                            disconnectTime: 0,
+                            inactivityKickTime: 0,
+                            wantsNewHand: false,
+                            hasRequestedHandDumpThisRound: false
+                        };
+                        this.playSound("playerJoin.ogg");
+                    }
+                    break;
+
+                case "leave-game":
+                    if (players[userId]) {
+                        const p = players[userId];
+                        if (p.cards) state.whiteDiscard.push(...p.cards.filter(Boolean));
+                        if (p.selected) state.whiteDiscard.push(...p.selected.filter(Boolean));
+                        
+                        const wasCzar = state.czar === userId;
+                        delete players[userId];
+                        this.playSound("playerKick.ogg");
+
+                        if (Object.keys(players).length < 3 || wasCzar) {
+                            state.isStarted = false;
+                            state.winner = null;
+                            state.czar = null;
+                        }
+                    }
+                    break;
+
+                case "start-game":
+                    if (this.isHost() && (!state.isStarted || state.winner) && Object.keys(players).length >= 3) {
+                        state = this.initializeNewRound(state);
+                    }
+                    break;
+
+                case "show-black":
+                    if (state.czar === userId) {
+                        state.showBlack = true;
+                        // Clear Czar timer
+                        if (player) player.inactivityKickTime = 0;
+                        // Set timers for responders
+                        const now = Date.now();
+                        Object.values(players).forEach(p => {
+                            if (p._id !== state.czar) {
+                                p.inactivityKickTime = now + (IDLE_TIMEOUT_SECONDS * 1000);
+                            }
+                        });
+                    }
+                    break;
+
+                case "choose-cards":
+                    if (player && !player.selected.length) {
+                        const numReq = state.currentBlackCard?.numResponses || 1;
+                        if (data.length === numReq) {
+                            player.selected = data;
+                            player.inactivityKickTime = 0;
+                            
+                            // Remove from hand
+                            const submittedIds = data.map(c => c._id);
+                            player.cards = player.cards.filter(c => !submittedIds.includes(c._id));
+
+                            this.playSound("card_flick.ogg");
+
+                            // If all submitted, set Czar timer
+                            const activeResponders = Object.values(players).filter(p => p._id !== state.czar && ((p.cards && p.cards.length > 0) || (p.selected && p.selected.length > 0)));
+                            if (activeResponders.length > 0 && activeResponders.every(p => p.selected.length > 0)) {
+                                if (state.players[state.czar]) {
+                                    state.players[state.czar].inactivityKickTime = Date.now() + (IDLE_TIMEOUT_SECONDS * 1000);
+                                }
+                            }
+                        }
+                    }
+                    break;
+
+                case "preview-response":
+                    if (state.czar === userId) {
+                        state.currentPreviewResponse = data;
+                        this.playSound("card_flick.ogg");
+                    }
+                    break;
+
+                case "choose-winner":
+                    if (state.czar === userId && !state.winner) {
+                        const winnerPlayer = players[data];
+                        if (winnerPlayer) {
+                            winnerPlayer.trophies++;
+                            state.winner = { ...winnerPlayer }; // Copy for display
+                            state.winnerTime = Date.now();
+                            this.playSound("fanfare with pop.ogg");
+                            
+                            // Czar acted, clear timer
+                            if (player) player.inactivityKickTime = 0;
+                        }
+                    }
+                    break;
+
+                case "dump-hand":
+                    if (player && state.czar !== userId && !player.hasRequestedHandDumpThisRound) {
+                        player.wantsNewHand = true;
+                        player.hasRequestedHandDumpThisRound = true;
+                    }
+                    break;
+            }
+
+            state.lastAction = { action, userId, data, timestamp: Date.now() };
+            return state;
         }
 
         async buildEnvironment() {
@@ -117,10 +581,24 @@
             }));
             await tableObj.AddComponent(new BS.BanterMaterial({ shaderName: "Standard", color: new BS.Vector4(0.08, 0.08, 0.1, 1) }));
 
-            // Center Deck Box
-            const deckObj = await new BS.GameObject({ name: "HAH_Deck", parent: this.root, localPosition: new BS.Vector3(0, 1.05, 0) }).Async();
-            await deckObj.AddComponent(new BS.BanterBox({ width: 0.3, height: 0.1, depth: 0.2 }));
-            await deckObj.AddComponent(new BS.BanterMaterial({ shaderName: "Standard", color: new BS.Vector4(0.15, 0.15, 0.15, 1) }));
+            // Center Deck - GLB Model (box.glb)
+            // Scale the GLB to taste — adjust localScale values as needed
+            const deckObj = await new BS.GameObject({ 
+                name: "HAH_Deck", 
+                parent: this.root, 
+                localPosition: new BS.Vector3(0, 1.15, 0),
+                localScale: new BS.Vector3(2.5, 2.5, 2.5)
+            }).Async();
+            try {
+                await deckObj.AddComponent(new BS.BanterGLTF(`${DOMAIN}Assets/box.glb`, false, false, false, false, false, false));
+            } catch (glbErr) {
+                this.log("Failed to load box.glb, falling back to box:", glbErr);
+                await deckObj.AddComponent(new BS.BanterBox({ width: 0.3, height: 0.1, depth: 0.2 }));
+                await deckObj.AddComponent(new BS.BanterMaterial({ shaderName: "Standard", color: new BS.Vector4(0.15, 0.15, 0.15, 1) }));
+            }
+            this.ui.deckObj = deckObj;
+            this._deckRotZ = 0; // tracks smooth flip state
+            this.startDeckAnimation();
 
             // Player Slices
             this.ui.slices = [];
@@ -262,7 +740,7 @@
                 }).filter(Boolean);
 
                 this.confirm("Submit these cards?", () => {
-                    this.send("choose-cards", cardsToSubmit);
+                    this.sendAction("choose-cards", cardsToSubmit);
                     this.selectedCardIds = [];
                     this.updateUI();
                 });
@@ -273,7 +751,7 @@
             });
             const dumpBtn = await createBtn(hPanel, actionsRow, "DUMP HAND", "#F44336", () => {
                 this.confirm("Dump hand ?", () => {
-                    this.send("dump-hand");
+                    this.sendAction("dump-hand");
                     this.selectedCardIds = [];
                 });
             });
@@ -334,7 +812,8 @@
 
         async buildCentralUI() {
             const centralObj = await new BS.GameObject({ name: "HAH_CentralUI", parent: this.root, localPosition: new BS.Vector3(0, 2.0, 0), localScale: new BS.Vector3(0.15, 0.15, 0.15) }).Async();
-            await centralObj.AddComponent(new BS.BanterBillboard({ enableXAxis: true, enableYAxis: true }));
+            let centralBillboardObj = await centralObj.AddComponent(new BS.BanterBillboard({ smoothing: 1, enableXAxis: false, enableYAxis: true, enableZAxis: false }));
+            centralBillboardObj.enableXAxis = false;
             
             const panel = await centralObj.AddComponent(new BS.BanterUI(new BS.Vector2(900, 1000), false));
             const rootEl = panel.CreateVisualElement();
@@ -390,9 +869,10 @@
                 return btn;
             };
 
-            this.ui.joinBtn = await createBtn(buttonsRow, "JOIN GAME", "#2196F3", () => this.send("join-game"));
-            this.ui.dealBtn = await createBtn(buttonsRow, "START ROUND", "#4CAF50", () => this.send("start-game"));
-            this.ui.leaveBtn = await createBtn(buttonsRow, "LEAVE GAME", "#F44336", () => this.confirm("Leave game?", () => this.send("leave-game")));
+            this.ui.joinBtn = await createBtn(buttonsRow, "JOIN GAME", "#2196F3", () => this.sendAction("join-game"));
+            this.ui.dealBtn = await createBtn(buttonsRow, "START ROUND", "#4CAF50", () => this.sendAction("start-game"));
+            this.ui.leaveBtn = await createBtn(buttonsRow, "LEAVE GAME", "#F44336", () => this.confirm("Leave game?", () => this.sendAction("leave-game")));
+            this.ui.claimHostBtn = await createBtn(buttonsRow, "CLAIM HOST", "#9C27B0", () => this.sendAction("claim-host"));
             this.ui.muteBtn = await createBtn(buttonsRow, "🔊", "#607D8B", () => {
                 this.isMuted = !this.isMuted;
                 this.ui.muteBtn.text = this.isMuted ? "🔇" : "🔊";
@@ -437,7 +917,7 @@
             
             this.ui.blackCard.container.OnClick(() => {
                 if (this.gameState?.czar === scene.localUser.uid && !this.gameState?.showBlack) {
-                    this.send("show-black");
+                    this.sendAction("show-black");
                 }
             });
 
@@ -511,7 +991,7 @@
                     .filter(p => p._id !== this.gameState.czar && p.selected && p.selected.length > 0)
                     .sort((a, b) => a._id.localeCompare(b._id));
                 const nextIdx = Math.max(0, (this.gameState.currentPreviewResponse || 0) - 1);
-                this.send("preview-response", nextIdx);
+                this.sendAction("preview-response", nextIdx);
             });
             this.ui.czarWinnerBtn = await createBtn(czarControlsRow, "CHOOSE WINNER", "#4CAF50", () => {
                 const responders = Object.values(this.gameState.players)
@@ -519,7 +999,7 @@
                     .sort((a, b) => a._id.localeCompare(b._id));
                 const activeResponse = responders[this.gameState.currentPreviewResponse || 0];
                 if (activeResponse) {
-                    this.confirm(`Crown this card(s) the winner?`, () => this.send("choose-winner", activeResponse._id), activeResponse.selected);
+                    this.confirm(`Crown this card(s) the winner?`, () => this.sendAction("choose-winner", activeResponse._id), activeResponse.selected);
                 }
             });
             this.ui.czarNextBtn = await createBtn(czarControlsRow, "NEXT", "#555", () => {
@@ -527,7 +1007,7 @@
                     .filter(p => p._id !== this.gameState.czar && p.selected && p.selected.length > 0)
                     .sort((a, b) => a._id.localeCompare(b._id));
                 const nextIdx = Math.min(responders.length - 1, (this.gameState.currentPreviewResponse || 0) + 1);
-                this.send("preview-response", nextIdx);
+                this.sendAction("preview-response", nextIdx);
             });
 
             // Confirm Dialog UI Overlay
@@ -643,56 +1123,6 @@
             }
         }
 
-        async setupWebsocket() {
-            this.ws = new WebSocket(WEBSOCKET_URL);
-            this.ws.onopen = () => {
-                this.log("Connected to server");
-                const localUser = scene.localUser;
-                this.send("init", { 
-                    deck: this.params.deck, 
-                    instance: this.params.instance,
-                    user: { id: localUser.uid, name: localUser.name, role: "player" }
-                });
-            };
-            this.ws.onmessage = (event) => {
-                const msg = JSON.parse(event.data);
-                switch (msg.path) {
-                    case "sync-game":
-                        const prevWinner = this.gameState?.winner;
-                        this.gameState = msg.data;
-                        this.log("Synced game state:", this.gameState);
-                        if (prevWinner && !this.gameState.winner) {
-                            this.selectedCardIds = []; // Clear selections on new round
-                        }
-                        this.updateUI();
-                        break;
-                    case 'play-sound':
-                        this.playSound(msg.data);
-                        break;
-                    case "error":
-                        this.log("Server error:", msg.data);
-                        break;
-                }
-            };
-            this.ws.onerror = (e) => this.log("WebSocket error", e);
-            this.ws.onclose = () => {
-                this.log("WebSocket closed. Reconnecting...");
-                setTimeout(() => this.setupWebsocket(), 3000);
-            };
-        }
-
-        send(path, data = {}) {
-            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                const localUser = scene.localUser;
-                const req = {
-                    path,
-                    user: { id: localUser.uid, name: localUser.name, role: "player" },
-                    data
-                };
-                this.ws.send(JSON.stringify(req));
-            }
-        }
-
         playSound(name) {
             if (this.isMuted) return;
             const now = Date.now();
@@ -700,10 +1130,7 @@
             if (this.audioTracker[name] && now - this.audioTracker[name] < 100) return;
             this.audioTracker[name] = now;
 
-            // Convert wss:// to https:// or ws:// to http://
-            const domain = WEBSOCKET_URL.replace("wss://", "https://").replace("ws://", "http://");
-            const url = `${domain}Assets/${name}`;
-            
+            const url = `${DOMAIN}Assets/${name}`;
             const audio = new Audio(url);
             audio.crossOrigin = "anonymous";
             audio.volume = 0.3;
@@ -732,11 +1159,13 @@
             const localUid = scene.localUser.uid;
             const isPlaying = !!players[localUid];
             const isCzar = this.gameState.czar === localUid;
+            const isHost = this.isHost();
 
             // Update Central Hub
             this.ui.joinBtn.SetStyles({ display: isPlaying ? 'none' : 'flex' });
             this.ui.leaveBtn.SetStyles({ display: isPlaying ? 'flex' : 'none' });
             this.ui.creditLabel.SetStyles({ display: isPlaying ? 'none' : 'flex' });
+            this.ui.claimHostBtn.SetStyles({ display: isHost ? 'none' : 'flex' });
 
             const numPlayers = Object.keys(players).length;
             const minPlayers = 3;
@@ -748,7 +1177,7 @@
                     this.ui.dealBtn.SetStyles({ display: 'none' });
                 } else {
                     this.ui.statusLabel.SetStyles({ display: 'none' });
-                    this.ui.dealBtn.SetStyles({ display: isPlaying ? 'flex' : 'none' });
+                    this.ui.dealBtn.SetStyles({ display: isHost ? 'flex' : 'none' });
                 }
             } else {
                 this.ui.statusLabel.SetStyles({ display: 'none' });
@@ -777,7 +1206,8 @@
             const numReq = this.gameState.currentBlackCard?.numResponses || 1;
 
             // Only show responses if round is over (winner selected) or if everyone has submitted
-            const allSubmitted = responders.length > 0 && responders.every(p => p.selected && p.selected.length >= numReq);
+            const activeResponders = responders.filter(p => (p.cards && p.cards.length > 0) || (p.selected && p.selected.length > 0));
+            const allSubmitted = activeResponders.length > 0 && activeResponders.every(p => p.selected && p.selected.length >= numReq);
             
             if (this.gameState.winner) {
                 const winnerId = (this.gameState.winner && typeof this.gameState.winner === 'object') ? this.gameState.winner._id : this.gameState.winner;
@@ -883,7 +1313,8 @@
                 }
 
                 if (isLocalUser) {
-                    const showHand = this.gameState.isStarted && !sliceIsCzar && !this.gameState.winner && (!playerAtPos.selected || !playerAtPos.selected.length);
+                    const hasCards = playerAtPos.cards && playerAtPos.cards.length > 0;
+                    const showHand = this.gameState.isStarted && !sliceIsCzar && !this.gameState.winner && hasCards && (!playerAtPos.selected || !playerAtPos.selected.length);
                     
                     if (showHand) {
                         slice.hRoot.SetStyles({ display: 'flex' });
@@ -925,8 +1356,7 @@
         }
 
         tickTimers() {
-            if (!this.gameState || !this.ui.centralPanel) return;
-            this.updateUI();
+            // Deprecated, logic moved to tick()
         }
     }
 
