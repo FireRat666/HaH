@@ -1168,7 +1168,7 @@
             
             if (!this.gameState.isStarted) {
                 if (numPlayers < minPlayers) {
-                    this.ui.statusLabel.text = `Waiting for players... (${numPlayers}/${minPlayers} joined)`;
+                    this.ui.statusLabel.text = `Waiting for players... (${numPlayers}/${minPlayers} joined) ${MAX_PLAYERS} Max`;
                     this.ui.statusLabel.SetStyles({ display: 'flex' });
                     this.ui.dealBtn.SetStyles({ display: 'none' });
                 } else {
