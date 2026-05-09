@@ -38,5 +38,3 @@ Here's an example of how you might use it:
     *   **Local Deck**: Use the name of a deck file (without `.json`) located in the `/decks` folder (e.g., `deck="australiadeck"`).
     *   **External Deck**: Provide a full URL to a publicly accessible JSON file that follows the correct deck format.
 *   `debug`: (Default: `"false"`) Set to `"true"` to enable extra logging in the browser's developer console.
-*   `one-for-each-instance`: (Default: `"false"`) A special flag for BanterVR. When set to `"true"`, it automatically creates a unique game for each Banter room instance, preventing players in different rooms from joining the same game.
-*   `uid`: (Default: `null`) A unique identifier for a player. If not provided, a random guest ID is generated and stored in the browser's local storage. This attribute is useful for platform integrations (like BanterVR) where the platform can inject a persistent user ID to maintain player identity across sessions.
