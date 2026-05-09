@@ -2,7 +2,7 @@
     let scene;
     let currentScript = document.currentScript;
 
-    const WEBSOCKET_URL = "wss://hah.bonto.run/";
+    const WEBSOCKET_URL = "wss://hah.firer.at/";
     const MAX_PLAYERS = 10;
     const MAX_HAND_CARDS = 12;
     const MAX_SUPPORTED_RESPONSES = 3;

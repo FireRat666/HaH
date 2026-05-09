@@ -30,12 +30,12 @@ A terrible game for terrible people, now in your favorite virtual worlds. This i
 
 ## Customization
 
-You can customize the game by adding attributes to the `<script>` tag that loads `script.js`. This is especially useful when embedding the game in platforms like BanterVR.
+You can customize the game by adding attributes to the `<script>` tag that loads `hah.js`. This is especially useful when embedding the game in platforms like BanterVR. Note that `hah.js` uses the new Banter UI system.
 
 Here's an example of how you might use it:
 
 ```html
-<script src="https://your-app-name.onrender.com/script.js" 
+<script src="https://your-app-name.onrender.com/hah.js"
         position="0 1 -5" 
         rotation="0 90 0" 
         instance="my-private-game" 
