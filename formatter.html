@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="color-scheme" content="dark">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Card Formatter</title>
+  <link id="favicon" rel="icon" href="favicon.ico" type="image/x-icon" />
+  <meta property="og:title" content="Card Formatter">
+  <meta property="og:description" content="CrCast to Holograms Against Humanity Card Formatter">
+  <meta property="og:image" content="https://firer.at/files/FireRat-DALLE-Tv2.png">
+  <link rel="stylesheet" href="https://firer.at/pages/style.css" />
+  <script src="https://firer.at/scripts/RandomBG.js"></script>
+  <style> .info-text { font-size: 20px; line-height: 1.4 !important; display: block; } </style>
+</head>
+<body id="body">
+    <center> <p><b><div style="font-size: 35px;"><a href="https://cast.clrtd.com/">CrCast</a> to Holograms Against Humanity Card Formatter</div></b></p>
+
+  <!-- Form to fetch JSON from a URL -->
+  <form id="urlFetcherForm" style="font-size: 25px; line-height: 0; margin-top: 0px; margin-bottom: 0px;">
+    <p><label for="fetchUrl" style="font-size: 30px;">Enter Deck Code:</label>
+    <input id="fetchUrl" class="url-form url-thing" style="font-size: 18px; width: 10%;" type="text" placeholder="Code" size="10">
+    <button type="button" class="url-thing" style="font-size: 20px;" onclick="fetchAndFormat()">Fetch & Format</button></p>
+  </form>
+
+  <form id="formatterForm">
+    <p><label for="inputText" style="font-size: 20px;"><b>Enter Json Manually if automatic fetch fails:</b></label><br>
+    <textarea id="inputText" class="url-form url-thing" style="font-size: 15px; width: 100%; white-space: pre; overflow-x: auto;" rows="10" cols="50" placeholder='Enter the card JSON here'></textarea><br>
+    <button type="button" class="url-thing" style="font-size: 20px;" onclick="formatCards()">Format</button></p>
+  </form>
+
+  <b><div style="font-size: 25px;">Formatted Output:</div></b>
+  <textarea id="outputText" class="url-form url-thing"  style="font-size: 15px; width: 100%; white-space: pre; overflow-x: auto;" rows="15" cols="50" readonly></textarea>
+
+    <button type="button" class="url-thing" style="font-size: 20px; margin-top: 10px;" onclick="copyToClipboard()">Copy to Clipboard</button><div> </div><br>
+  <span class="info-text">
+    <div>INFO: Get the Code for a Deck from <a href="https://cast.clrtd.com/">cast.clrtd.com</a>.</div>
+    <div>For manual Json extraction use the <a href="https://cast.clrtd.com/api">API</a> URL & insert the deck code.</div>
+    <div>Example URL: https://api.crcast.cc/v1/cc/decks/<b><span style="color: #FFFF00">CODE</span></b>/cards/</div>
+    Copy the RAW JSON Data and paste it into the above box, then click Format and you can copy the formatted JSON.
+  </span><br><br></center>
+
+  <script>
+    async function fetchAndFormat() {
+      const url = `https://crcastjson.firer.at/${document.getElementById('fetchUrl').value}`;
+      if (!url) { alert("Please enter a valid URL."); return; }
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          alert(`Error fetching data: ${response.status} ${response.statusText}`);
+          return;
+        }
+        const jsonData = await response.json();
+        document.getElementById('inputText').value = JSON.stringify(jsonData, null, 2);
+        formatCards(); // Automatically format after fetching
+      } catch (error) { alert(`Failed to fetch JSON: ${error.message}`); }
+    }
+
+    function escapeQuotes(text) { return text.replace(/"/g, '\\"'); }
+
+    function formatTextWithBlanksAndBreaks(textArray, maxLength = 25) {
+      let combinedText = textArray.join(' _____ ');
+      const words = combinedText.split(' ');
+      let line = '';
+      let formattedLines = [];
+      words.forEach(word => {
+        if (line.length + word.length + 1 > maxLength) {
+          formattedLines.push(line.trim());
+          line = word + ' ';
+        } else { line += word + ' '; }
+      });
+      formattedLines.push(line.trim());
+      return escapeQuotes(formattedLines.join('\\n'));
+    }
+
+    function formatCards() {
+      const inputText = document.getElementById('inputText').value;
+      try {
+        const data = JSON.parse(inputText);
+        const formattedBlack = data.calls.map(call => {
+        const textArray = call.text;
+        const joinedText = textArray.join(' _____ ');
+        const blankCount = (joinedText.match(/_____/g) || []).length;
+        // If there are multiple blanks, add numResponses
+        if (blankCount > 1) { return `    {"text": "${formatTextWithBlanksAndBreaks(textArray)}", "numResponses": ${blankCount}}`;
+        } else { return `    {"text": "${formatTextWithBlanksAndBreaks(textArray)}"}`; }}).join(',\n');
+        const formattedWhite = data.responses.map(response => `    {"text": "${formatTextWithBlanksAndBreaks([response.text[0]])}"}`).join(',\n');
+        const formattedOutput = `module.exports = {\n  "black": [\n${formattedBlack}\n  ],\n  "white": [\n${formattedWhite}\n  ]\n}`;
+        document.getElementById('outputText').value = formattedOutput;
+      } catch (e) { alert('Invalid JSON format. Please correct your input.'); }
+    }
+
+    function copyToClipboard() {
+      const outputText = document.getElementById('outputText');
+      outputText.select();
+      outputText.setSelectionRange(0, 99999); // For mobile devices
+      navigator.clipboard.writeText(outputText.value).then(() => {
+        alert("Copied to clipboard!");
+      }).catch(err => { alert("Failed to copy text: " + err); });
+    }
+
+  </script>
+</body>
+</html>
