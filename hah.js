@@ -120,6 +120,7 @@
             this.isConfirmationDialogOpen = false;
             this.confirmCallback = null;
             this.isMuted = false;
+            this.playersInitiallyLoaded = {}; // Track initial connected state for sound suppression
 
             const urlParams = new URLSearchParams(window.location.search);
             const getParam = (attr, defaultValue) => {
@@ -178,9 +179,9 @@
             if (this.params.debug) console.log("[HAH Banter]", ...args);
         }
 
-        playSound(name) {
+        playLocalSound(soundFile) { // This will be called by sync
             if (this.isMuted) return;
-            const audio = new Audio(`${DOMAIN}audio/${name}`);
+            const audio = new Audio(`${DOMAIN}Assets/${soundFile}`);
             audio.crossOrigin = "anonymous";
             audio.volume = 0.5;
             audio.play().catch(e => this.log("Sound play error:", e));
@@ -257,12 +258,12 @@
                 if (!this.gameState) {
                     this.gameState = this.getDefaultState();
                 }
+                this.playersInitiallyLoaded = {}; // Clear if state is reset
             } else {
-                if (this.gameState && newState.lastAction) {
-                    const lastSyncTime = this.gameState.lastAction?.timestamp || 0;
-                    if (newState.lastAction.timestamp > lastSyncTime) {
-                        this.handleActionSound(newState.lastAction);
-                    }
+                // Check for sound to play
+                const oldSound = this.gameState ? this.gameState.lastSound : null;
+                if (newState.lastSound && (!oldSound || newState.lastSound.ts !== oldSound.ts)) {
+                    this.playLocalSound(newState.lastSound.file);
                 }
 
                 if (JSON.stringify(this.gameState) !== JSON.stringify(newState)) {
@@ -270,6 +271,11 @@
                     this.gameState = newState;
                     if (prevWinner && !this.gameState.winner) {
                         this.selectedCardIds = [];
+                    }
+                    // Populate playersInitiallyLoaded based on the newly synced state
+                    this.playersInitiallyLoaded = {};
+                    for (const playerId in this.gameState.players) {
+                        this.playersInitiallyLoaded[playerId] = this.gameState.players[playerId].connected;
                     }
                 }
             }
@@ -293,6 +299,7 @@
                 round: 0,
                 currentHostUid: null,
                 lastAction: null,
+                lastSound: null, // Add lastSound to default state
                 selectedPacks: []
             };
         }
@@ -304,7 +311,7 @@
             this.sync();
         }
 
-        async sendAction(action, data = {}) {
+        async sendAction(action, data = {}, senderUid = null) {
             if (!scene?.localUser || !scene?.spaceState) return;
 
             const raw = scene.spaceState.public[STATE_KEY];
@@ -315,8 +322,14 @@
                 state = this.getDefaultState();
             }
 
-            const updated = this.applyGameLogic(state, action, scene.localUser.uid, scene.localUser.name, data);
+            const updated = this.applyGameLogic(state, action, senderUid || scene.localUser.uid, scene.localUser.name, data);
             if (updated) {
+                // If the logic triggered a sound, sync it
+                if (updated._triggerSound) {
+                    updated.lastSound = { file: updated._triggerSound, ts: Date.now() };
+                    delete updated._triggerSound;
+                }
+                updated.lastAction = { action, userId: senderUid || scene.localUser.uid, data, timestamp: Date.now() }; // Keep lastAction for debugging/history
                 await scene.SetPublicSpaceProps({ [STATE_KEY]: JSON.stringify(updated) });
                 this.sync();
             }
@@ -401,6 +414,8 @@
             const playerIds = Object.keys(this.gameState.players);
             playerIds.forEach(uid => {
                 const p = this.gameState.players[uid];
+                if (!p) return; // Player might have been removed by a previous action in this loop
+
                 const isConnected = !!scene.users[uid];
 
                 // Update connected status in state
@@ -415,7 +430,11 @@
                 if (!isConnected && p.disconnectTime > 0) {
                     if (now - p.disconnectTime > DISCONNECT_TIMEOUT_SECONDS * 1000) {
                         this.log(`Kicking ${p.name} for disconnect.`);
-                        this.applyGameLogic(this.gameState, "leave-game", uid, p.name, {});
+                        // Determine if sound should be played:
+                        // Play sound if the player was connected when the state was initially loaded.
+                        const wasInitiallyConnected = this.playersInitiallyLoaded.hasOwnProperty(uid) && this.playersInitiallyLoaded[uid];
+                        const playSound = wasInitiallyConnected;
+                        this.sendAction("leave-game", { playSound: playSound }, uid); // Pass playSound flag
                         changed = true;
                     }
                 }
@@ -424,7 +443,7 @@
                 if (this.gameState.isStarted && p.inactivityKickTime > 0) {
                     if (now > p.inactivityKickTime) {
                         this.log(`Kicking ${p.name} for inactivity.`);
-                        this.applyGameLogic(this.gameState, "leave-game", uid, p.name, {});
+                        this.sendAction("leave-game", { playSound: true }, uid); // Inactivity kick should play sound
                         changed = true;
                     }
                 }
@@ -553,6 +572,7 @@
                     if (this.isHost() && (!state.isStarted || state.winner)) {
                         state.selectedPacks = data;
                         this.log("Packs updated:", data);
+                        this.triggerSound(state, "card_flick.ogg");
                     }
                     break;
 
@@ -578,6 +598,7 @@
                             wantsNewHand: false,
                             hasRequestedHandDumpThisRound: false
                         };
+                        this.triggerSound(state, "playerJoin.ogg");
                     }
                     break;
 
@@ -595,12 +616,17 @@
                             state.winner = null;
                             state.czar = null;
                         }
+                        // Conditionally trigger sound
+                        if (data.playSound !== false) { // playSound is passed in data from driveHostLogic
+                            this.triggerSound(state, "playerKick.ogg");
+                        }
                     }
                     break;
 
                 case "start-game":
                     if (this.isHost() && (!state.isStarted || state.winner) && Object.keys(players).length >= 3) {
                         state = this.initializeNewRound(state);
+                        this.triggerSound(state, "gameStart.ogg");
                     }
                     break;
 
@@ -616,6 +642,7 @@
                                 p.inactivityKickTime = now + (IDLE_TIMEOUT_SECONDS * 1000);
                             }
                         });
+                        this.triggerSound(state, "card_flick.ogg");
                     }
                     break;
 
@@ -637,6 +664,7 @@
                                     state.players[state.czar].inactivityKickTime = Date.now() + (IDLE_TIMEOUT_SECONDS * 1000);
                                 }
                             }
+                            this.triggerSound(state, "card_flick.ogg");
                         }
                     }
                     break;
@@ -644,6 +672,7 @@
                 case "preview-response":
                     if (state.czar === userId) {
                         state.currentPreviewResponse = data;
+                        this.triggerSound(state, "card_flick.ogg");
                     }
                     break;
 
@@ -658,6 +687,7 @@
                             // Czar acted, clear timer
                             if (player) player.inactivityKickTime = 0;
                         }
+                        this.triggerSound(state, "fanfare with pop.ogg");
                     }
                     break;
 
@@ -665,6 +695,7 @@
                     if (player && state.czar !== userId && !player.hasRequestedHandDumpThisRound) {
                         player.wantsNewHand = true;
                         player.hasRequestedHandDumpThisRound = true;
+                        this.triggerSound(state, "card_flick.ogg");
                     }
                     break;
             }
@@ -673,32 +704,7 @@
             return state;
         }
         
-        handleActionSound(lastAction) {
-            if (!lastAction) return;
-            const { action, userId, data } = lastAction;
-            switch (action) {
-                case "join-game":
-                    this.playSound("playerJoin.ogg");
-                    break;
-                case "leave-game":
-                    this.playSound("playerKick.ogg");
-                    break;
-                case "start-game":
-                    this.playSound("gameStart.ogg");
-                    break;
-                case "choose-cards":
-                case "preview-response":
-                case "update-decks":
-                    this.playSound("card_flick.ogg");
-                    break;
-                case "choose-winner":
-                    this.playSound("fanfare with pop.ogg");
-                    break;
-                case "show-black":
-                    this.playSound("card_flick.ogg");
-                    break;
-            }
-        }
+        // Removed handleActionSound as its logic is now integrated into sync and triggerSound
 
         async buildEnvironment() {
             const rootPos = this.parseVector3(this.params.position);
@@ -1371,18 +1377,8 @@
             }
         }
 
-        playSound(name) {
-            if (this.isMuted) return;
-            const now = Date.now();
-            this.audioTracker = this.audioTracker || {};
-            if (this.audioTracker[name] && now - this.audioTracker[name] < 100) return;
-            this.audioTracker[name] = now;
-
-            const url = `${DOMAIN}Assets/${name}`;
-            const audio = new Audio(url);
-            audio.crossOrigin = "anonymous";
-            audio.volume = 0.3;
-            audio.play().catch(e => this.log("Audio play failed: " + e.message));
+        triggerSound(state, name) { // Renamed from playSound
+            state._triggerSound = name;
         }
 
         onCardClick(index) {
@@ -1528,7 +1524,7 @@
                 
                 // Inactivity & Disconnect Timer Display
                 const kickTime = playerAtPos.inactivityKickTime || 0;
-                const discTime = playerAtPos.disconnectKickTime || 0;
+                const discTime = playerAtPos.disconnectTime || 0; // Use disconnectTime from player object
                 const now = new Date().getTime();
                 
                 let timerStr = "";
@@ -1539,8 +1535,8 @@
                     secondsLeft = Math.max(0, Math.floor((kickTime - now) / 1000));
                 }
 
-                if (discTime > 0) {
-                    const discSeconds = Math.max(0, Math.floor((discTime - now) / 1000));
+                if (discTime > 0 && !playerAtPos.connected) { // Only show disconnect timer if actually disconnected
+                    const discSeconds = Math.max(0, Math.floor((discTime + (DISCONNECT_TIMEOUT_SECONDS * 1000) - now) / 1000));
                     if (discSeconds < secondsLeft) {
                         secondsLeft = discSeconds;
                         icon = "📡";
