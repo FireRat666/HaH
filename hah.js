@@ -311,7 +311,14 @@
         async updateState(patch) {
             if (!this.gameState) return;
             Object.assign(this.gameState, patch);
-            await scene.SetPublicSpaceProps({ [this.stateKey]: JSON.stringify(this.gameState) }); // Changed STATE_KEY to this.stateKey
+
+            // If a sound was triggered during logic, sync it
+            if (this.gameState._triggerSound) {
+                this.gameState.lastSound = { file: this.gameState._triggerSound, ts: Date.now() };
+                delete this.gameState._triggerSound;
+            }
+            
+            await scene.SetPublicSpaceProps({ [this.stateKey]: JSON.stringify(this.gameState) });
             this.sync();
         }
 
@@ -434,11 +441,8 @@
                 if (!isConnected && p.disconnectTime > 0) {
                     if (now - p.disconnectTime > DISCONNECT_TIMEOUT_SECONDS * 1000) {
                         this.log(`Kicking ${p.name} for disconnect.`);
-                        // Determine if sound should be played:
-                        // Play sound if the player was connected when the state was initially loaded.
                         const wasInitiallyConnected = this.playersInitiallyLoaded.hasOwnProperty(uid) && this.playersInitiallyLoaded[uid];
-                        const playSound = wasInitiallyConnected;
-                        this.sendAction("leave-game", { playSound: playSound }, uid); // Pass playSound flag
+                        this.applyGameLogic(this.gameState, "leave-game", uid, p.name, { playSound: wasInitiallyConnected });
                         changed = true;
                     }
                 }
@@ -447,7 +451,7 @@
                 if (this.gameState.isStarted && p.inactivityKickTime > 0) {
                     if (now > p.inactivityKickTime) {
                         this.log(`Kicking ${p.name} for inactivity.`);
-                        this.sendAction("leave-game", { playSound: true }, uid); // Inactivity kick should play sound
+                        this.applyGameLogic(this.gameState, "leave-game", uid, p.name, { playSound: true });
                         changed = true;
                     }
                 }
@@ -457,7 +461,8 @@
             if (this.gameState.winner && this.gameState.winnerTime) {
                 if (now - this.gameState.winnerTime > 5000) {
                     this.log("Auto-starting next round...");
-                    this.sendAction("start-game");
+                    this.applyGameLogic(this.gameState, "start-game", scene.localUser.uid, scene.localUser.name, {});
+                    changed = true;
                 }
             }
 
