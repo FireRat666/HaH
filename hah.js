@@ -10,6 +10,103 @@
     const IDLE_TIMEOUT_SECONDS = 90;
     const DISCONNECT_TIMEOUT_SECONDS = 45;
 
+    class CAHDeck {
+        _hydrateCompact(json) {
+            let packs = [];
+            let sourcePacks = json.packs || (json.metadata ? Object.values(json.metadata) : []);
+            for (let pack of sourcePacks) {
+            pack.white = pack.white.map((index) =>
+                Object.assign(
+                {},
+                { text: json.white[index] },
+                { pack: packs.length },
+                pack.icon ? { icon: pack.icon } : {}
+                )
+            );
+            pack.black = pack.black.map((index) =>
+                Object.assign(
+                {},
+                typeof json.black[index] === 'string' ? { text: json.black[index] } : json.black[index],
+                { pack: packs.length },
+                pack.icon ? { icon: pack.icon } : {}
+                )
+            );
+            packs.push(pack);
+            }
+            return packs;
+        }
+
+        async _loadDeck() {
+            if (typeof this.compactSrc != "undefined") {
+            let json = await fetch(this.compactSrc).then((data) => data.json());
+            this.deck = this._hydrateCompact(json);
+            } else if (typeof this.fullSrc != "undefined") {
+            this.deck = await fetch(this.fullSrc).then((data) => data.json());
+            } else {
+            throw Error(
+                "No source specified, please use CAHDeck.fromCompact(src) or CAHDeck.fromFull(src) to make your objects."
+            );
+            }
+        }
+
+        static async fromCompact(compactSrc) {
+            let n = new CAHDeck();
+            n.compactSrc = compactSrc;
+            await n._loadDeck();
+            return n;
+        }
+
+        static async fromFull(fullSrc) {
+            let n = new CAHDeck();
+            n.fullSrc = fullSrc;
+            await n._loadDeck();
+            return n;
+        }
+
+        listPacks() {
+            let packs = [];
+            let id = 0;
+            for (let { name, official, description, icon, white, black } of this.deck) {
+            let pack = {
+                id,
+                name,
+                official,
+                description,
+                counts: {
+                white: white.length,
+                black: black.length,
+                total: white.length + black.length,
+                },
+            };
+            if (icon) {
+                pack.icon = icon;
+            }
+            packs.push(pack);
+            id += 1;
+            }
+            return packs;
+        }
+
+        getPack(index) {
+            return this.deck[index];
+        }
+
+        getPacks(indexes) {
+            if (typeof indexes == "undefined") {
+            indexes = Object.keys(this.deck);
+            }
+            let white = [];
+            let black = [];
+            for (let pack of indexes) {
+            if (typeof this.deck[pack] != "undefined") {
+                white.push(...this.deck[pack].white);
+                black.push(...this.deck[pack].black);
+            }
+            }
+            return { white, black };
+        }
+    }
+
     class BullshcriptGame {
         constructor() {
             this.gameState = null;
@@ -23,7 +120,6 @@
             this.isConfirmationDialogOpen = false;
             this.confirmCallback = null;
             this.isMuted = false;
-            this.masterDeck = null; // Original deck data loaded from JSON
 
             const urlParams = new URLSearchParams(window.location.search);
             const getParam = (attr, defaultValue) => {
@@ -37,7 +133,6 @@
                 position: getParam("position", "0 0 0"),
                 rotation: getParam("rotation", "0 0 0"),
                 instance: getParam("instance", "hah_game"),
-                deck: getParam("deck", "main"),
                 debug: getParam("debug", "false") === "true"
             };
             STATE_KEY = this.params.instance;
@@ -98,7 +193,7 @@
             }
 
             // Load deck data
-            await this.loadDeck(this.params.deck);
+            await this.loadDeck();
 
             // Listen for state changes
             scene.On("space-state-changed", this.onSpaceStateChanged.bind(this));
@@ -110,31 +205,18 @@
             setInterval(() => this.tick(), 1000);
         }
 
-        async loadDeck(deckName) {
+        async loadDeck() {
             try {
-                this.log(`Loading deck: ${deckName}`);
-                const response = await fetch(`${DOMAIN}decks/${deckName}.json`);
-                if (!response.ok) throw new Error(`Failed to load deck: ${response.statusText}`);
-                const data = await response.json();
+                this.log(`Loading decks from compact json...`);
+                this.cahDeck = await CAHDeck.fromCompact(`${DOMAIN}decks/cah-cards-compact.json`);
+                this.availablePacks = this.cahDeck.listPacks();
                 
-                // Process deck like server.js did
-                let cardIdCounter = 0;
-                this.masterDeck = {
-                    black: data.black.map(card => ({ 
-                        ...(typeof card === 'string' ? { text: card } : card), 
-                        _id: `b_${cardIdCounter++}`,
-                        numResponses: (typeof card === 'object' && card.numResponses) ? card.numResponses : 1 
-                    })),
-                    white: data.white.map(card => ({ 
-                        ...(typeof card === 'string' ? { text: card } : card), 
-                        _id: `w_${cardIdCounter++}` 
-                    }))
-                };
+                const basePack = this.availablePacks.find(p => p.name === 'CAH Base Set') || this.availablePacks[0];
+                this.defaultSelectedPacks = [basePack.id];
+                
                 this.log("Deck loaded successfully.");
             } catch (err) {
                 this.log("Error loading deck:", err);
-                // If it fails, maybe try main.json as fallback if we didn't already
-                if (deckName !== 'main') await this.loadDeck('main');
             }
         }
 
@@ -195,7 +277,8 @@
                 winner: null,
                 round: 0,
                 currentHostUid: null,
-                lastAction: null
+                lastAction: null,
+                selectedPacks: []
             };
         }
 
@@ -404,8 +487,14 @@
         drawWhiteCard(state) {
             if (state.whiteDeck.length === 0) {
                 if (state.whiteDiscard.length === 0) {
-                    // Reshuffle from master
-                    state.whiteDeck = [...this.masterDeck.white].sort(() => Math.random() - 0.5);
+                    // Reshuffle from master for current packs
+                    const selectedIds = state.selectedPacks && state.selectedPacks.length > 0 ? state.selectedPacks : this.defaultSelectedPacks;
+                    const combined = this.cahDeck.getPacks(selectedIds);
+                    let cardIdCounter = 0;
+                    state.whiteDeck = combined.white.map(card => ({ 
+                        ...card, 
+                        _id: `w_${cardIdCounter++}` 
+                    })).sort(() => Math.random() - 0.5);
                 } else {
                     state.whiteDeck = [...state.whiteDiscard].sort(() => Math.random() - 0.5);
                     state.whiteDiscard = [];
@@ -417,7 +506,14 @@
         drawBlackCard(state) {
             if (state.blackDeck.length === 0) {
                 if (state.blackDiscard.length === 0) {
-                    state.blackDeck = [...this.masterDeck.black].sort(() => Math.random() - 0.5);
+                    const selectedIds = state.selectedPacks && state.selectedPacks.length > 0 ? state.selectedPacks : this.defaultSelectedPacks;
+                    const combined = this.cahDeck.getPacks(selectedIds);
+                    let cardIdCounter = 0;
+                    state.blackDeck = combined.black.map(card => ({ 
+                        ...(typeof card === 'string' ? { text: card } : card), 
+                        _id: `b_${cardIdCounter++}`,
+                        numResponses: card.pick || card.numResponses || 1 
+                    })).sort(() => Math.random() - 0.5);
                 } else {
                     state.blackDeck = [...state.blackDiscard].sort(() => Math.random() - 0.5);
                     state.blackDiscard = [];
@@ -437,6 +533,13 @@
             switch (action) {
                 case "claim-host":
                     state.currentHostUid = userId;
+                    break;
+
+                case "update-decks":
+                    if (this.isHost() && (!state.isStarted || state.winner)) {
+                        state.selectedPacks = data;
+                        this.log("Packs updated:", data);
+                    }
                     break;
 
                 case "join-game":
@@ -663,6 +766,10 @@
                 borderColor: '#666666'
             });
 
+            if (sRoot.parent && sRoot.parent.SetStyles) {
+                sRoot.parent.SetStyles({ backgroundColor: 'rgba(0, 0, 0, 0)' });
+            }
+
             const nameText = sPanel.CreateLabel(undefined, sRoot);
             await nameText.Async();
             nameText.text = "Empty Seat";
@@ -700,6 +807,10 @@
                 borderWidth: '3px',
                 borderColor: '#666666'
             });
+
+            if (hRoot.parent && hRoot.parent.SetStyles) {
+                hRoot.parent.SetStyles({ backgroundColor: 'rgba(0, 0, 0, 0)' });
+            }
 
             const actionsRow = hPanel.CreateVisualElement(hRoot);
             await actionsRow.Async();
@@ -833,6 +944,10 @@
                 backgroundImage: 'none'
             });
 
+            if (rootEl.parent && rootEl.parent.SetStyles) {
+                rootEl.parent.SetStyles({ backgroundColor: 'rgba(0, 0, 0, 0)' });
+            }
+
             this.ui.centralPanel = { obj: centralObj, panel, rootEl };
 
             const title = panel.CreateLabel(undefined, rootEl);
@@ -867,6 +982,7 @@
 
             this.ui.joinBtn = await createBtn(buttonsRow, "JOIN GAME", "#2196F3", () => this.sendAction("join-game"));
             this.ui.dealBtn = await createBtn(buttonsRow, "START ROUND", "#4CAF50", () => this.sendAction("start-game"));
+            this.ui.deckOptionsBtn = await createBtn(buttonsRow, "DECK OPTIONS", "#FF9800", () => this.openDeckOptionsUI());
             this.ui.leaveBtn = await createBtn(buttonsRow, "LEAVE GAME", "#F44336", () => this.confirm("Leave game?", () => this.sendAction("leave-game")));
             this.ui.claimHostBtn = await createBtn(buttonsRow, "CLAIM HOST", "#9C27B0", () => this.sendAction("claim-host"));
             this.ui.muteBtn = await createBtn(buttonsRow, "🔊", "#607D8B", () => {
@@ -1088,6 +1204,107 @@
                 this.isConfirmationDialogOpen = false;
                 this.ui.confirmOverlay.SetStyles({ display: 'none' });
             });
+            
+            await this.buildDeckOptionsUI(panel, rootEl, createBtn);
+        }
+
+        async buildDeckOptionsUI(panel, rootEl, createBtn) {
+            this.ui.deckOptionsOverlay = panel.CreateVisualElement(rootEl);
+            await this.ui.deckOptionsOverlay.Async();
+            this.ui.deckOptionsOverlay.SetStyles({
+                display: 'none', position: 'absolute', top: '0', left: '0', width: '100%', height: '100%',
+                backgroundColor: 'rgba(10, 10, 10, 0.98)', flexDirection: 'column', alignItems: 'center',
+                paddingTop: '40px', zIndex: '90'
+            });
+
+            const title = panel.CreateLabel(undefined, this.ui.deckOptionsOverlay);
+            await title.Async();
+            title.text = "SELECT DECKS";
+            title.SetStyles({ backgroundColor: 'rgba(0,0,0,0)', color: 'white', fontSize: '36px', marginBottom: '20px', fontWeight: 'bold' });
+
+            const scrollArea = panel.CreateScrollView(this.ui.deckOptionsOverlay);
+            await scrollArea.Async();
+            scrollArea.SetStyles({
+                width: '850px', height: '650px', backgroundColor: 'rgba(0,0,0,0.9)',
+                overflow: 'scroll', marginBottom: '20px'
+            });
+            
+            if (scrollArea.parent && scrollArea.parent.SetStyles) {
+                scrollArea.parent.SetStyles({ backgroundColor: 'rgba(0, 0, 0, 0)', backgroundImage: 'none' });
+            }
+
+            const packsGrid = panel.CreateVisualElement(scrollArea);
+            await packsGrid.Async();
+            packsGrid.SetStyles({
+                display: 'flex', flexWrap: 'wrap', flexDirection: 'row', justifyContent: 'center',
+                width: '100%', backgroundColor: 'rgba(0,0,0,0)'
+            });
+
+            this.ui.packButtons = [];
+            
+            const MAX_PACKS = 120;
+            for (let i = 0; i < MAX_PACKS; i++) {
+                const btn = panel.CreateButton(packsGrid);
+                await btn.Async();
+                btn.text = "";
+                btn.SetStyles({
+                    display: 'none', backgroundColor: '#333333', color: 'white',
+                    width: '240px', height: '90px', margin: '8px', borderRadius: '10px',
+                    fontSize: '18px', borderWidth: '4px', borderColor: '#aaaaaa'
+                });
+                
+                btn.OnClick(() => {
+                    if (this.tempSelectedPacks.includes(i)) {
+                        if (this.tempSelectedPacks.length > 1) {
+                            this.tempSelectedPacks = this.tempSelectedPacks.filter(id => id !== i);
+                        }
+                    } else {
+                        this.tempSelectedPacks.push(i);
+                    }
+                    this.updateDeckOptionsUI();
+                });
+                
+                this.ui.packButtons.push(btn);
+            }
+
+            const btnsRow = panel.CreateVisualElement(this.ui.deckOptionsOverlay);
+            await btnsRow.Async();
+            btnsRow.SetStyles({ display: 'flex', flexDirection: 'row', gap: '30px', backgroundColor: 'rgba(0,0,0,0)' });
+
+            await createBtn(btnsRow, "CANCEL", "#F44336", () => {
+                this.closeDeckOptionsUI();
+            });
+            await createBtn(btnsRow, "SAVE DECKS", "#4CAF50", () => {
+                this.sendAction("update-decks", this.tempSelectedPacks);
+                this.closeDeckOptionsUI();
+            });
+        }
+
+        openDeckOptionsUI() {
+            this.tempSelectedPacks = [...(this.gameState.selectedPacks && this.gameState.selectedPacks.length > 0 ? this.gameState.selectedPacks : this.defaultSelectedPacks)];
+            this.updateDeckOptionsUI();
+            this.ui.deckOptionsOverlay.SetStyles({ display: 'flex' });
+        }
+
+        closeDeckOptionsUI() {
+            this.ui.deckOptionsOverlay.SetStyles({ display: 'none' });
+        }
+
+        updateDeckOptionsUI() {
+            if (!this.availablePacks) return;
+            this.availablePacks.forEach((pack) => {
+                const btn = this.ui.packButtons[pack.id];
+                if (btn) {
+                    let btnText = this.wrapText(pack.name, 22);
+                    btn.text = btnText;
+                    const isSelected = this.tempSelectedPacks.includes(pack.id);
+                    btn.SetStyles({
+                        display: 'flex',
+                        backgroundColor: isSelected ? '#4CAF50' : '#333333',
+                        borderColor: isSelected ? '#ffffff' : '#aaaaaa'
+                    });
+                }
+            });
         }
 
         confirm(message, callback, previewCards = null) {
@@ -1171,13 +1388,16 @@
                     this.ui.statusLabel.text = `Waiting for players... (${numPlayers}/${minPlayers} joined) ${MAX_PLAYERS} Max`;
                     this.ui.statusLabel.SetStyles({ display: 'flex' });
                     this.ui.dealBtn.SetStyles({ display: 'none' });
+                    this.ui.deckOptionsBtn.SetStyles({ display: isHost ? 'flex' : 'none' });
                 } else {
                     this.ui.statusLabel.SetStyles({ display: 'none' });
                     this.ui.dealBtn.SetStyles({ display: isHost ? 'flex' : 'none' });
+                    this.ui.deckOptionsBtn.SetStyles({ display: isHost ? 'flex' : 'none' });
                 }
             } else {
                 this.ui.statusLabel.SetStyles({ display: 'none' });
                 this.ui.dealBtn.SetStyles({ display: 'none' });
+                this.ui.deckOptionsBtn.SetStyles({ display: 'none' });
             }
 
             if (this.gameState.isStarted && this.gameState.currentBlackCard) {
