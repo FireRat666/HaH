@@ -178,6 +178,14 @@
             if (this.params.debug) console.log("[HAH Banter]", ...args);
         }
 
+        playSound(name) {
+            if (this.isMuted) return;
+            const audio = new Audio(`${DOMAIN}audio/${name}`);
+            audio.crossOrigin = "anonymous";
+            audio.volume = 0.5;
+            audio.play().catch(e => this.log("Sound play error:", e));
+        }
+
         async init() {
             if (scene) return;
             scene = BS.BanterScene.GetInstance();
@@ -250,6 +258,13 @@
                     this.gameState = this.getDefaultState();
                 }
             } else {
+                if (this.gameState && newState.lastAction) {
+                    const lastSyncTime = this.gameState.lastAction?.timestamp || 0;
+                    if (newState.lastAction.timestamp > lastSyncTime) {
+                        this.handleActionSound(newState.lastAction);
+                    }
+                }
+
                 if (JSON.stringify(this.gameState) !== JSON.stringify(newState)) {
                     const prevWinner = this.gameState?.winner;
                     this.gameState = newState;
@@ -480,7 +495,6 @@
                 state.players[state.czar].inactivityKickTime = Date.now() + (IDLE_TIMEOUT_SECONDS * 1000);
             }
 
-            this.playSound("gameStart.ogg");
             return state;
         }
 
@@ -564,7 +578,6 @@
                             wantsNewHand: false,
                             hasRequestedHandDumpThisRound: false
                         };
-                        this.playSound("playerJoin.ogg");
                     }
                     break;
 
@@ -576,7 +589,6 @@
                         
                         const wasCzar = state.czar === userId;
                         delete players[userId];
-                        this.playSound("playerKick.ogg");
 
                         if (Object.keys(players).length < 3 || wasCzar) {
                             state.isStarted = false;
@@ -618,8 +630,6 @@
                             const submittedIds = data.map(c => c._id);
                             player.cards = player.cards.filter(c => !submittedIds.includes(c._id));
 
-                            this.playSound("card_flick.ogg");
-
                             // If all submitted, set Czar timer
                             const activeResponders = Object.values(players).filter(p => p._id !== state.czar && ((p.cards && p.cards.length > 0) || (p.selected && p.selected.length > 0)));
                             if (activeResponders.length > 0 && activeResponders.every(p => p.selected.length > 0)) {
@@ -634,7 +644,6 @@
                 case "preview-response":
                     if (state.czar === userId) {
                         state.currentPreviewResponse = data;
-                        this.playSound("card_flick.ogg");
                     }
                     break;
 
@@ -645,8 +654,7 @@
                             winnerPlayer.trophies++;
                             state.winner = { ...winnerPlayer }; // Copy for display
                             state.winnerTime = Date.now();
-                            this.playSound("fanfare with pop.ogg");
-                            
+                             
                             // Czar acted, clear timer
                             if (player) player.inactivityKickTime = 0;
                         }
@@ -663,6 +671,33 @@
 
             state.lastAction = { action, userId, data, timestamp: Date.now() };
             return state;
+        }
+        
+        handleActionSound(lastAction) {
+            if (!lastAction) return;
+            const { action, userId, data } = lastAction;
+            switch (action) {
+                case "join-game":
+                    this.playSound("playerJoin.ogg");
+                    break;
+                case "leave-game":
+                    this.playSound("playerKick.ogg");
+                    break;
+                case "start-game":
+                    this.playSound("gameStart.ogg");
+                    break;
+                case "choose-cards":
+                case "preview-response":
+                case "update-decks":
+                    this.playSound("card_flick.ogg");
+                    break;
+                case "choose-winner":
+                    this.playSound("fanfare with pop.ogg");
+                    break;
+                case "show-black":
+                    this.playSound("card_flick.ogg");
+                    break;
+            }
         }
 
         async buildEnvironment() {
