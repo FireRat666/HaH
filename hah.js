@@ -1524,7 +1524,8 @@
                     slice.statusText.text = "";
                     slice.timerText.text = "";
                     slice.sRoot.SetStyles({ display: 'none' });
-                    slice.hRoot.SetStyles({ display: 'none' });
+                    // Scale down the hand GameObject entirely if no player is at this slice
+                    slice.handObj.transform.localScale = new BS.Vector3(0, 0, 0);
                     if (slice.wedgeMat) slice.wedgeMat.color = new BS.Vector4(0.15, 0.15, 0.15, 1);
                     continue;
                 }
@@ -1573,6 +1574,9 @@
                     const hasCards = playerAtPos.cards && playerAtPos.cards.length > 0;
                     const showHand = this.gameState.isStarted && !sliceIsCzar && !this.gameState.winner && hasCards && (!playerAtPos.selected || !playerAtPos.selected.length);
                     
+                    // Scale the hand GameObject based on showHand status
+                    slice.handObj.transform.localScale = showHand ? new BS.Vector3(0.08, 0.08, 0.08) : new BS.Vector3(0, 0, 0);
+
                     if (showHand) {
                         slice.hRoot.SetStyles({ display: 'flex' });
                         slice.statusText.text = "PICK CARDS";
@@ -1606,6 +1610,8 @@
                         slice.statusText.text = sliceIsCzar ? "CZAR" : (playerAtPos.selected && playerAtPos.selected.length ? "READY" : "WAITING");
                     }
                 } else {
+                    // For non-local users, always scale down the hand GameObject
+                    slice.handObj.transform.localScale = new BS.Vector3(0, 0, 0);
                     slice.hRoot.SetStyles({ display: 'none' });
                     slice.statusText.text = sliceIsCzar ? "CZAR" : (playerAtPos.selected && playerAtPos.selected.length ? "READY" : "THINKING");
                 }
