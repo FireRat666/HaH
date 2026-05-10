@@ -121,6 +121,7 @@
             this.confirmCallback = null;
             this.isMuted = false;
             this.playersInitiallyLoaded = {}; // Track initial connected state for sound suppression
+            this.joinTime = Date.now();
 
             const urlParams = new URLSearchParams(window.location.search);
             const getParam = (attr, defaultValue) => {
@@ -263,7 +264,9 @@
                 // Check for sound to play
                 const oldSound = this.gameState ? this.gameState.lastSound : null;
                 if (newState.lastSound && (!oldSound || newState.lastSound.ts !== oldSound.ts)) {
-                    this.playLocalSound(newState.lastSound.file);
+                    if (newState.lastSound.ts > this.joinTime) {
+                        this.playLocalSound(newState.lastSound.file);
+                    }
                 }
 
                 if (JSON.stringify(this.gameState) !== JSON.stringify(newState)) {
@@ -272,10 +275,11 @@
                     if (prevWinner && !this.gameState.winner) {
                         this.selectedCardIds = [];
                     }
-                    // Populate playersInitiallyLoaded based on the newly synced state
-                    this.playersInitiallyLoaded = {};
-                    for (const playerId in this.gameState.players) {
-                        this.playersInitiallyLoaded[playerId] = this.gameState.players[playerId].connected;
+                    // Populate playersInitiallyLoaded only once upon first valid state sync
+                    if (Object.keys(this.playersInitiallyLoaded).length === 0) {
+                        for (const playerId in this.gameState.players) {
+                            this.playersInitiallyLoaded[playerId] = this.gameState.players[playerId].connected;
+                        }
                     }
                 }
             }
