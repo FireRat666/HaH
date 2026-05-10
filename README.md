@@ -7,6 +7,7 @@ A terrible game for terrible people, now in your favorite virtual worlds. This i
 
 * Adapted for AltspaceVR by: Derogatory, falkrons, schmidtec
 * Ported to Banter by Shane, Improved and ported from Glitch by FireRat
+* Card Data & Logic: [Chris Hallberg](https://crhallberg.com/cah/) ([JSON Against Humanity](https://github.com/crhallberg/json-against-humanity))
 
 ## Features
 

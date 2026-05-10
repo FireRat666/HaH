@@ -19,3 +19,9 @@ Project Contributors
 Adapted for AltspaceVR by: Derogatory, falkrons, schmidtec
 Shane: Originally Ported to Banter
 FireRat: Architected and implemented the migration to the modern Banter SDK, transforming the application from a server-dependent model to a fully serverless, client-side experience. This involved a complete overhaul of the game logic and UI to leverage Banter's latest capabilities, significantly enhancing performance and deployability.
+
+=========================================
+Third-Party Libraries & Data Sources
+=========================================
+
+Chris Hallberg (crhallberg.com/cah/): Source of the JSON card data (json-against-humanity) and the CAHDeck.js hydration logic.
