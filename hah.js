@@ -6,7 +6,7 @@
     const MAX_PLAYERS = 10;
     const MAX_HAND_CARDS = 12;
     const MAX_SUPPORTED_RESPONSES = 3;
-    let STATE_KEY = "hah_game";
+    // Removed: let STATE_KEY = "hah_game";
     const IDLE_TIMEOUT_SECONDS = 90;
     const DISCONNECT_TIMEOUT_SECONDS = 45;
 
@@ -136,7 +136,7 @@
                 instance: getParam("instance", "hah_game"),
                 debug: getParam("debug", "false") === "true"
             };
-            STATE_KEY = this.params.instance;
+            this.stateKey = this.params.instance; // Changed STATE_KEY to this.stateKey
         }
 
         wrapText(text, maxChars = 19) {
@@ -183,7 +183,7 @@
             if (this.isMuted) return;
             const audio = new Audio(`${DOMAIN}Assets/${soundFile}`);
             audio.crossOrigin = "anonymous";
-            audio.volume = 0.5;
+            audio.volume = 0.3;
             audio.play().catch(e => this.log("Sound play error:", e));
         }
 
@@ -230,7 +230,7 @@
         }
 
         onSpaceStateChanged(e) {
-            if (e.detail.changes.some(c => c.property === STATE_KEY)) {
+            if (e.detail.changes.some(c => c.property === this.stateKey)) { // Changed STATE_KEY to this.stateKey
                 this.sync();
             }
         }
@@ -245,7 +245,7 @@
 
         sync() {
             if (!scene || !scene.spaceState) return;
-            const raw = scene.spaceState.public[STATE_KEY];
+            const raw = scene.spaceState.public[this.stateKey]; // Changed STATE_KEY to this.stateKey
             let newState;
             try {
                 newState = raw ? JSON.parse(raw) : null;
@@ -307,14 +307,14 @@
         async updateState(patch) {
             if (!this.gameState) return;
             Object.assign(this.gameState, patch);
-            await scene.SetPublicSpaceProps({ [STATE_KEY]: JSON.stringify(this.gameState) });
+            await scene.SetPublicSpaceProps({ [this.stateKey]: JSON.stringify(this.gameState) }); // Changed STATE_KEY to this.stateKey
             this.sync();
         }
 
         async sendAction(action, data = {}, senderUid = null) {
             if (!scene?.localUser || !scene?.spaceState) return;
 
-            const raw = scene.spaceState.public[STATE_KEY];
+            const raw = scene.spaceState.public[this.stateKey]; // Changed STATE_KEY to this.stateKey
             let state;
             try {
                 state = raw ? JSON.parse(raw) : this.getDefaultState();
@@ -330,7 +330,7 @@
                     delete updated._triggerSound;
                 }
                 updated.lastAction = { action, userId: senderUid || scene.localUser.uid, data, timestamp: Date.now() }; // Keep lastAction for debugging/history
-                await scene.SetPublicSpaceProps({ [STATE_KEY]: JSON.stringify(updated) });
+                await scene.SetPublicSpaceProps({ [this.stateKey]: JSON.stringify(updated) }); // Changed STATE_KEY to this.stateKey
                 this.sync();
             }
         }
