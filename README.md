@@ -12,7 +12,7 @@ A terrible game for terrible people, now in your favorite virtual worlds. This i
 
 *   **Multiplayer Fun**: Play with up to 10 players, with game state synchronized via Banter Space properties.
 *   **Player Reconnect**: Disconnected players can rejoin a game in progress.
-*   **Custom Decks**: Use the default card deck, other included decks, or load your own from any public URL. Decks are loaded from external JSON files.
+*   **Host-Selectable Expansions**: The Host can dynamically choose which card expansions to include from a built-in library of over 70 official and unofficial packs directly from the in-game "DECK OPTIONS" UI.
 *   **Easy Integration**: Embed the game into any web-based world with a single script tag, requiring only static hosting.
 
 ## Customization
@@ -25,8 +25,7 @@ Here's an example of how you might use it:
 <script src="https://your-static-host.com/hah.js"
         position="0 1 -5" 
         rotation="0 90 0" 
-        instance="my-private-game" 
-        deck="https://gist.githubusercontent.com/someuser/12345/raw/my-deck.json"></script>
+        instance="my-private-game"></script>
 ```
 
 ### Available Attributes
@@ -34,12 +33,19 @@ Here's an example of how you might use it:
 *   `position`: (Default: `"0 0 0"`) Sets the `x y z` position of the game table in the world.
 *   `rotation`: (Default: `"0 0 0"`) Sets the `x y z` rotation of the game table.
 *   `instance`: (Default: `"demo-game"`) A unique name for the game room. All players with the same instance name will join the same game.
-*   `deck`: (Default: `"main"`) Specifies the card deck to use.
-    *   **Local Deck**: Use the name of a deck file (without `.json`) located in the `/decks` folder (e.g., `deck="australiadeck"`).
-    *   **External Deck**: Provide a full URL to a publicly accessible JSON file that follows the correct deck format.
 *   `debug`: (Default: `"false"`) Set to `"true"` to enable extra logging in the browser's developer console.
 
-## Deck Formatting Tool
+## Game Setup & Deck Selection
+
+When the game initializes, it defaults to using the **CAH Base Set**. 
+
+If you are the Host (or if you claim Host in an empty room), you can configure the game before starting:
+1. Click the **DECK OPTIONS** button on the central hub.
+2. Scroll through the available expansions and click to toggle them on or off (green means selected).
+3. Click **SAVE DECKS** to commit your choices.
+4. Click **START ROUND** to begin the game!
+
+## Deck Formatting Tool - For Older Version
 
 To make it easier to use custom card decks, this project includes a utility called `formatter.html`. This tool allows you to convert card decks from [CrCast](https://cast.clrtd.com/) (Cards Against Humanity online) into a format compatible with Holograms Against Humanity.
 
