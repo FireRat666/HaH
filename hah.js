@@ -1092,7 +1092,7 @@
 
             const creditLabel = panel.CreateLabel(undefined, rootEl);
             await creditLabel.Async();
-            creditLabel.text = "Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nOriginally Ported to Banter by Shane\nSDK Port by FireRat\nCard Data & Logic by Chris Hallberg\nv0.8.4";
+            creditLabel.text = "Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nOriginally Ported to Banter by Shane\nSDK Port by FireRat\nCard Data & Logic by Chris Hallberg\nv0.8.5";
             creditLabel.SetStyles({ color: '#aaaaaa', fontSize: '25px', marginTop: '20px', textAlign: 'center' });
             this.ui.creditLabel = creditLabel;
 
@@ -1398,12 +1398,9 @@
         updateDeckOptionsUI() {
             if (!this.availablePacks) return;
             
-            // Hide all buttons first
-            this.ui.packButtons.forEach(btn => btn.SetStyles({ display: 'none' }));
-
-            this.availablePacks.forEach((pack, index) => {
-                const btn = this.ui.packButtons[index];
-                if (btn) {
+            this.ui.packButtons.forEach((btn, index) => {
+                const pack = this.availablePacks[index];
+                if (pack) {
                     btn.text = this.wrapText(pack.name, 22);
                     const isSelected = this.tempSelectedPacks.includes(pack.id);
                     btn.SetStyles({
@@ -1411,6 +1408,8 @@
                         backgroundColor: isSelected ? '#4CAF50' : '#333333',
                         borderColor: isSelected ? '#ffffff' : '#aaaaaa'
                     });
+                } else {
+                    btn.SetStyles({ display: 'none' });
                 }
             });
         }
