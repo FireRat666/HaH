@@ -220,7 +220,13 @@
             try {
                 this.log(`Loading decks from compact json...`);
                 this.cahDeck = await CAHDeck.fromCompact(`${DOMAIN}decks/cah-all-compact.json`);
-                this.availablePacks = this.cahDeck.listPacks().sort((a, b) => a.name.localeCompare(b.name));
+                this.availablePacks = this.cahDeck.listPacks().sort((a, b) => {
+                    // Sort by official status first (true comes before false)
+                    if (a.official && !b.official) return -1;
+                    if (!a.official && b.official) return 1;
+                    // Then sort alphabetically by name
+                    return a.name.localeCompare(b.name);
+                });
                 
                 const basePack = this.availablePacks.find(p => p.name === 'CAH Base Set') || this.availablePacks[0];
                 this.defaultSelectedPacks = [basePack.id];
@@ -1401,12 +1407,24 @@
             this.ui.packButtons.forEach((btn, index) => {
                 const pack = this.availablePacks[index];
                 if (pack) {
-                    btn.text = this.wrapText(pack.name, 22);
+                    let officialLabel = pack.official ? " (Official)" : " (Unofficial)";
+                    btn.text = this.wrapText(pack.name + officialLabel, 22);
                     const isSelected = this.tempSelectedPacks.includes(pack.id);
+
+                    let borderColor = isSelected ? '#ffffff' : '#aaaaaa'; // Default border color
+                    let backgroundColor = isSelected ? '#4CAF50' : '#333333'; // Default background color
+
+                    if (pack.official) {
+                        borderColor = isSelected ? '#00FFFF' : '#008080'; // Cyan for official selected, Teal for official unselected
+                    } else {
+                        borderColor = isSelected ? '#FFD700' : '#B8860B'; // Gold for unofficial selected, DarkGoldenrod for unofficial unselected
+                    }
+
                     btn.SetStyles({
                         display: 'flex',
-                        backgroundColor: isSelected ? '#4CAF50' : '#333333',
-                        borderColor: isSelected ? '#ffffff' : '#aaaaaa'
+                        backgroundColor: backgroundColor,
+                        borderColor: borderColor,
+                        borderWidth: isSelected ? '4px' : '2px' // Make selected border a bit thicker
                     });
                 } else {
                     btn.SetStyles({ display: 'none' });
