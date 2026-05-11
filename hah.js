@@ -489,6 +489,7 @@
             // Reset round state
             state.showBlack = false;
             state.winner = null;
+            state.winnerTime = 0; // Reset winner time
             state.currentPreviewResponse = 0;
             state.round++;
 
@@ -523,6 +524,7 @@
                 state.players[state.czar].inactivityKickTime = Date.now() + (IDLE_TIMEOUT_SECONDS * 1000);
             }
 
+            this.log(`New round started. Czar: ${state.czar}, Card: ${state.currentBlackCard?.text?.substring(0, 30)}...`);
             return state;
         }
 
@@ -647,7 +649,8 @@
                         // Set timers for responders
                         const now = Date.now();
                         Object.values(players).forEach(p => {
-                            if (p._id !== state.czar) {
+                            // Only set inactivity timer for players who actually have cards (participating in this round)
+                            if (p._id !== state.czar && p.cards && p.cards.length > 0) {
                                 p.inactivityKickTime = now + (IDLE_TIMEOUT_SECONDS * 1000);
                             }
                         });
@@ -907,7 +910,7 @@
                 this.updateUI();
             });
             const dumpBtn = await createBtn(hPanel, actionsRow, "DUMP HAND", "#F44336", () => {
-                this.confirm("Dump hand ?", () => {
+                this.confirm("Dump hand ?\nNext Round you will have new cards!", () => {
                     this.sendAction("dump-hand");
                     this.selectedCardIds = [];
                 });
@@ -1042,7 +1045,7 @@
 
             const creditLabel = panel.CreateLabel(undefined, rootEl);
             await creditLabel.Async();
-            creditLabel.text = "Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nOriginally Ported to Banter by Shane\nSDK Port by FireRat\nCard Data & Logic by Chris Hallberg\nv0.8.1";
+            creditLabel.text = "Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nOriginally Ported to Banter by Shane\nSDK Port by FireRat\nCard Data & Logic by Chris Hallberg\nv0.8.2";
             creditLabel.SetStyles({ color: '#aaaaaa', fontSize: '25px', marginTop: '20px', textAlign: 'center' });
             this.ui.creditLabel = creditLabel;
 
@@ -1444,10 +1447,11 @@
                 const canSeeBlack = isCzar || this.gameState.showBlack;
                 if (canSeeBlack) {
                     let cardText = this.gameState.currentBlackCard.text;
+                    let wrapped = this.wrapText(cardText, 30);
                     if (isCzar && !this.gameState.showBlack) {
-                        cardText += "\n\n(CLICK TO REVEAL)";
+                        wrapped += "\n\n<color=yellow>(CLICK TO REVEAL)</color>";
                     }
-                    this.ui.blackCard.label.text = this.wrapText(cardText, 30);
+                    this.ui.blackCard.label.text = wrapped;
                     this.ui.blackCard.container.SetStyles({ display: 'flex' });
                 } else {
                     this.ui.blackCard.label.text = "WAITING FOR CZAR\nTO REVEAL CARD...";
