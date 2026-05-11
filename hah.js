@@ -937,7 +937,6 @@
                     this.updateUI();
                 });
             });
-            this.ui.slices[index].submitBtn = submitBtn; // Keep reference for text updates
             const resetBtn = await createBtn(hPanel, actionsRow, "RESET", "#FF9800", () => {
                 this.selectedCardIds = [];
                 this.updateUI();
