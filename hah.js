@@ -218,7 +218,7 @@
         async loadDeck() {
             try {
                 this.log(`Loading decks from compact json...`);
-                this.cahDeck = await CAHDeck.fromCompact(`${DOMAIN}decks/cah-cards-compact.json`);
+                this.cahDeck = await CAHDeck.fromCompact(`${DOMAIN}decks/cah-all-compact.json`);
                 this.availablePacks = this.cahDeck.listPacks();
                 
                 const basePack = this.availablePacks.find(p => p.name === 'CAH Base Set') || this.availablePacks[0];
