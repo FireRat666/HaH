@@ -193,7 +193,9 @@
             scene = BS.BanterScene.GetInstance();
 
             this.log("Initializing Serverless HAH...");
-            await this.buildEnvironment();
+            
+            // Load deck data first so UI can be built with it
+            await this.loadDeck();
 
             if (!scene.unityLoaded) {
                 await new Promise(resolve => {
@@ -202,8 +204,7 @@
                 });
             }
 
-            // Load deck data
-            await this.loadDeck();
+            await this.buildEnvironment();
 
             // Listen for state changes
             scene.On("space-state-changed", this.onSpaceStateChanged.bind(this));
@@ -219,7 +220,7 @@
             try {
                 this.log(`Loading decks from compact json...`);
                 this.cahDeck = await CAHDeck.fromCompact(`${DOMAIN}decks/cah-all-compact.json`);
-                this.availablePacks = this.cahDeck.listPacks().sort((a, b) => a.name.localeCompare(b.name));
+                this.availablePacks = this.cahDeck.listPacks(); // No sorting for now to test stability
                 
                 const basePack = this.availablePacks.find(p => p.name === 'CAH Base Set') || this.availablePacks[0];
                 this.defaultSelectedPacks = [basePack.id];
@@ -1339,34 +1340,34 @@
                 width: '100%', backgroundColor: 'rgba(0,0,0,0)'
             });
 
-            this.ui.packButtons = {};
+            this.ui.packButtons = [];
             
-            if (this.availablePacks) {
-                for (const pack of this.availablePacks) {
-                    const btn = panel.CreateButton(packsGrid);
-                    await btn.Async();
-                    btn.text = this.wrapText(pack.name, 22);
-                    
-                    btn.SetStyles({
-                        display: 'flex', backgroundColor: '#333333', color: 'white',
-                        width: '240px', height: '90px', margin: '8px', borderRadius: '10px',
-                        fontSize: '18px', borderWidth: '4px', borderColor: '#aaaaaa'
-                    });
-                    
-                    btn.OnClick(() => {
-                        const packId = pack.id;
-                        if (this.tempSelectedPacks.includes(packId)) {
-                            if (this.tempSelectedPacks.length > 1) {
-                                this.tempSelectedPacks = this.tempSelectedPacks.filter(id => id !== packId);
-                            }
-                        } else {
-                            this.tempSelectedPacks.push(packId);
+            const MAX_PACKS = 500;
+            for (let i = 0; i < MAX_PACKS; i++) {
+                const btn = panel.CreateButton(packsGrid);
+                await btn.Async();
+                
+                btn.SetStyles({
+                    display: 'none', backgroundColor: '#333333', color: 'white',
+                    width: '240px', height: '90px', margin: '8px', borderRadius: '10px',
+                    fontSize: '18px', borderWidth: '4px', borderColor: '#aaaaaa'
+                });
+                
+                btn.OnClick(() => {
+                    const pack = this.availablePacks?.[i];
+                    if (!pack) return;
+                    const packId = pack.id;
+                    if (this.tempSelectedPacks.includes(packId)) {
+                        if (this.tempSelectedPacks.length > 1) {
+                            this.tempSelectedPacks = this.tempSelectedPacks.filter(id => id !== packId);
                         }
-                        this.updateDeckOptionsUI();
-                    });
-                    
-                    this.ui.packButtons[pack.id] = btn;
-                }
+                    } else {
+                        this.tempSelectedPacks.push(packId);
+                    }
+                    this.updateDeckOptionsUI();
+                });
+                
+                this.ui.packButtons.push(btn);
             }
 
             const btnsRow = panel.CreateVisualElement(this.ui.deckOptionsOverlay);
@@ -1396,11 +1397,14 @@
 
         updateDeckOptionsUI() {
             if (!this.availablePacks) return;
-            this.availablePacks.forEach((pack) => {
-                const btn = this.ui.packButtons[pack.id];
+            
+            // Hide all buttons first
+            this.ui.packButtons.forEach(btn => btn.SetStyles({ display: 'none' }));
+
+            this.availablePacks.forEach((pack, index) => {
+                const btn = this.ui.packButtons[index];
                 if (btn) {
-                    let btnText = this.wrapText(pack.name, 22);
-                    btn.text = btnText;
+                    btn.text = this.wrapText(pack.name, 22);
                     const isSelected = this.tempSelectedPacks.includes(pack.id);
                     btn.SetStyles({
                         display: 'flex',
