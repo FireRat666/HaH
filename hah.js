@@ -219,7 +219,7 @@
             try {
                 this.log(`Loading decks from compact json...`);
                 this.cahDeck = await CAHDeck.fromCompact(`${DOMAIN}decks/cah-all-compact.json`);
-                this.availablePacks = this.cahDeck.listPacks();
+                this.availablePacks = this.cahDeck.listPacks().sort((a, b) => a.name.localeCompare(b.name));
                 
                 const basePack = this.availablePacks.find(p => p.name === 'CAH Base Set') || this.availablePacks[0];
                 this.defaultSelectedPacks = [basePack.id];
@@ -1339,31 +1339,34 @@
                 width: '100%', backgroundColor: 'rgba(0,0,0,0)'
             });
 
-            this.ui.packButtons = [];
+            this.ui.packButtons = {};
             
-            const MAX_PACKS = 120;
-            for (let i = 0; i < MAX_PACKS; i++) {
-                const btn = panel.CreateButton(packsGrid);
-                await btn.Async();
-                btn.text = "";
-                btn.SetStyles({
-                    display: 'none', backgroundColor: '#333333', color: 'white',
-                    width: '240px', height: '90px', margin: '8px', borderRadius: '10px',
-                    fontSize: '18px', borderWidth: '4px', borderColor: '#aaaaaa'
-                });
-                
-                btn.OnClick(() => {
-                    if (this.tempSelectedPacks.includes(i)) {
-                        if (this.tempSelectedPacks.length > 1) {
-                            this.tempSelectedPacks = this.tempSelectedPacks.filter(id => id !== i);
+            if (this.availablePacks) {
+                for (const pack of this.availablePacks) {
+                    const btn = panel.CreateButton(packsGrid);
+                    await btn.Async();
+                    btn.text = this.wrapText(pack.name, 22);
+                    
+                    btn.SetStyles({
+                        display: 'flex', backgroundColor: '#333333', color: 'white',
+                        width: '240px', height: '90px', margin: '8px', borderRadius: '10px',
+                        fontSize: '18px', borderWidth: '4px', borderColor: '#aaaaaa'
+                    });
+                    
+                    btn.OnClick(() => {
+                        const packId = pack.id;
+                        if (this.tempSelectedPacks.includes(packId)) {
+                            if (this.tempSelectedPacks.length > 1) {
+                                this.tempSelectedPacks = this.tempSelectedPacks.filter(id => id !== packId);
+                            }
+                        } else {
+                            this.tempSelectedPacks.push(packId);
                         }
-                    } else {
-                        this.tempSelectedPacks.push(i);
-                    }
-                    this.updateDeckOptionsUI();
-                });
-                
-                this.ui.packButtons.push(btn);
+                        this.updateDeckOptionsUI();
+                    });
+                    
+                    this.ui.packButtons[pack.id] = btn;
+                }
             }
 
             const btnsRow = panel.CreateVisualElement(this.ui.deckOptionsOverlay);
@@ -1383,10 +1386,12 @@
             this.tempSelectedPacks = [...(this.gameState.selectedPacks && this.gameState.selectedPacks.length > 0 ? this.gameState.selectedPacks : this.defaultSelectedPacks)];
             this.updateDeckOptionsUI();
             this.ui.deckOptionsOverlay.SetStyles({ display: 'flex' });
+            this._isDeckOptionsOpen = true;
         }
 
         closeDeckOptionsUI() {
             this.ui.deckOptionsOverlay.SetStyles({ display: 'none' });
+            this._isDeckOptionsOpen = false;
         }
 
         updateDeckOptionsUI() {
@@ -1462,6 +1467,11 @@
             const isPlaying = !!players[localUid];
             const isCzar = this.gameState.czar === localUid;
             const isHost = this.isHost();
+
+            // Auto-close deck options if we are no longer the host
+            if (!isHost && this._isDeckOptionsOpen) {
+                this.closeDeckOptionsUI();
+            }
 
             // Update Central Hub
             this.ui.joinBtn.SetStyles({ display: isPlaying ? 'none' : 'flex' });
