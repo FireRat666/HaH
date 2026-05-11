@@ -220,7 +220,7 @@
             try {
                 this.log(`Loading decks from compact json...`);
                 this.cahDeck = await CAHDeck.fromCompact(`${DOMAIN}decks/cah-all-compact.json`);
-                this.availablePacks = this.cahDeck.listPacks(); // No sorting for now to test stability
+                this.availablePacks = this.cahDeck.listPacks().sort((a, b) => a.name.localeCompare(b.name));
                 
                 const basePack = this.availablePacks.find(p => p.name === 'CAH Base Set') || this.availablePacks[0];
                 this.defaultSelectedPacks = [basePack.id];
