@@ -319,7 +319,9 @@
             }
             
             await scene.SetPublicSpaceProps({ [this.stateKey]: JSON.stringify(this.gameState) });
-            this.sync();
+            // Do NOT call sync() here, it will overwrite our local changes with stale space data
+            // until the network update actually propagates back to us.
+            this.updateUI();
         }
 
         async sendAction(action, data = {}, senderUid = null) {
@@ -358,16 +360,17 @@
                 await scene.SetPublicSpaceProps({ [this.stateKey]: JSON.stringify(updated) });
                 
                 // Short delay to let the space settle, then verify if our change persisted
-                await new Promise(r => setTimeout(r, 150));
+                await new Promise(r => setTimeout(r, 200));
                 const postRaw = scene.spaceState.public[this.stateKey];
                 
                 // If the current space state contains our unique action ID, we succeeded!
                 if (postRaw && postRaw.includes(actionId)) {
-                    this.sync();
+                    this.gameState = updated; // Update local state immediately
+                    this.updateUI();
                     return;
                 }
                 
-                this.log(`Action ${action} stomped by another player, retrying (attempt ${attempt + 1})...`);
+                this.log(`Action ${action} stomped or slow, retrying (attempt ${attempt + 1})...`);
                 // Random jitter before retry to reduce further collisions
                 await new Promise(r => setTimeout(r, 100 + Math.random() * 300));
             }
@@ -383,9 +386,20 @@
             return this.gameState.currentHostUid === scene.localUser.uid;
         }
 
-        tick() {
-            if (!this.gameState) return;
+        async tick() {
+            if (!this.gameState || !scene?.localUser) return;
+            const now = Date.now();
+            const localUid = scene.localUser.uid;
+
             if (this.isHost()) {
+                // Protect against stomping: If a player recently performed an action, 
+                // wait for it to propagate before the Host logic runs and potentially overwrites it.
+                const lastAction = this.gameState.lastAction;
+                if (lastAction && lastAction.userId !== localUid && (now - lastAction.timestamp < 1500)) {
+                    // Skip this tick to let player state settle
+                    this.updateUI();
+                    return;
+                }
                 this.driveHostLogic();
             }
             this.updateUI();
