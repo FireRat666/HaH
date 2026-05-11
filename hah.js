@@ -1505,7 +1505,7 @@
             if (this.gameState.isStarted && this.gameState.currentBlackCard) {
                 const canSeeBlack = isCzar || this.gameState.showBlack;
                 if (canSeeBlack) {
-                    let cardText = this.gameState.currentBlackCard.text;
+                    let cardText = (this.gameState.currentBlackCard.text || "").replace(/_/g, "_____");
                     let wrapped = this.wrapText(cardText, 30);
                     if (isCzar && !this.gameState.showBlack) {
                         wrapped += "\n\n<color=yellow>(CLICK TO REVEAL)</color>";
