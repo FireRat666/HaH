@@ -324,26 +324,54 @@
 
         async sendAction(action, data = {}, senderUid = null) {
             if (!scene?.localUser || !scene?.spaceState) return;
+            
+            const localUid = senderUid || scene.localUser.uid;
+            const localName = scene.localUser.name;
 
-            const raw = scene.spaceState.public[this.stateKey]; // Changed STATE_KEY to this.stateKey
-            let state;
-            try {
-                state = raw ? JSON.parse(raw) : this.getDefaultState();
-            } catch (err) {
-                state = this.getDefaultState();
-            }
+            for (let attempt = 0; attempt < 5; attempt++) {
+                const raw = scene.spaceState.public[this.stateKey];
+                let state;
+                try {
+                    state = raw ? JSON.parse(raw) : this.getDefaultState();
+                } catch (err) {
+                    state = this.getDefaultState();
+                }
 
-            const updated = this.applyGameLogic(state, action, senderUid || scene.localUser.uid, scene.localUser.name, data);
-            if (updated) {
-                // If the logic triggered a sound, sync it
+                // Check if our action is already there (e.g. from a successful previous attempt that we thought failed)
+                if (state.lastAction && state.lastAction.userId === localUid && state.lastAction.action === action && JSON.stringify(state.lastAction.data) === JSON.stringify(data)) {
+                    // Action already reflected, no need to retry
+                    this.sync();
+                    return;
+                }
+
+                const updated = this.applyGameLogic(state, action, localUid, localName, data);
+                if (!updated) return;
+
                 if (updated._triggerSound) {
                     updated.lastSound = { file: updated._triggerSound, ts: Date.now() };
                     delete updated._triggerSound;
                 }
-                updated.lastAction = { action, userId: senderUid || scene.localUser.uid, data, timestamp: Date.now() }; // Keep lastAction for debugging/history
-                await scene.SetPublicSpaceProps({ [this.stateKey]: JSON.stringify(updated) }); // Changed STATE_KEY to this.stateKey
-                this.sync();
+                
+                const actionId = Math.random().toString(36).substring(7);
+                updated.lastAction = { action, userId: localUid, data, timestamp: Date.now(), id: actionId };
+
+                await scene.SetPublicSpaceProps({ [this.stateKey]: JSON.stringify(updated) });
+                
+                // Short delay to let the space settle, then verify if our change persisted
+                await new Promise(r => setTimeout(r, 150));
+                const postRaw = scene.spaceState.public[this.stateKey];
+                
+                // If the current space state contains our unique action ID, we succeeded!
+                if (postRaw && postRaw.includes(actionId)) {
+                    this.sync();
+                    return;
+                }
+                
+                this.log(`Action ${action} stomped by another player, retrying (attempt ${attempt + 1})...`);
+                // Random jitter before retry to reduce further collisions
+                await new Promise(r => setTimeout(r, 100 + Math.random() * 300));
             }
+            this.log(`Failed to deliver action ${action} after 5 attempts.`);
         }
 
         isHost() {
@@ -890,6 +918,7 @@
             };
 
             const submitBtn = await createBtn(hPanel, actionsRow, "SUBMIT", "#4CAF50", () => {
+                if (this._isSubmitting) return;
                 const localUid = scene.localUser?.uid;
                 const localPlayer = Object.values(this.gameState.players).find(p => p._id === localUid);
                 if (!localPlayer) return;
@@ -899,12 +928,16 @@
                     return card ? { _id: card._id, text: card.text } : null;
                 }).filter(Boolean);
 
-                this.confirm("Submit these cards?", () => {
-                    this.sendAction("choose-cards", cardsToSubmit);
+                this.confirm("Submit these cards?", async () => {
+                    this._isSubmitting = true;
+                    this.updateUI();
+                    await this.sendAction("choose-cards", cardsToSubmit);
+                    this._isSubmitting = false;
                     this.selectedCardIds = [];
                     this.updateUI();
                 });
             });
+            this.ui.slices[index].submitBtn = submitBtn; // Keep reference for text updates
             const resetBtn = await createBtn(hPanel, actionsRow, "RESET", "#FF9800", () => {
                 this.selectedCardIds = [];
                 this.updateUI();
@@ -1607,7 +1640,14 @@
                         });
 
                         slice.resetBtn.SetStyles({ display: this.selectedCardIds.length > 0 ? 'flex' : 'none' });
-                        slice.submitBtn.SetStyles({ display: this.selectedCardIds.length === numReq ? 'flex' : 'none' });
+                        
+                        const canSubmit = this.selectedCardIds.length === numReq;
+                        slice.submitBtn.text = this._isSubmitting ? "..." : "SUBMIT";
+                        slice.submitBtn.SetStyles({ 
+                            display: canSubmit ? 'flex' : 'none',
+                            opacity: this._isSubmitting ? '0.5' : '1'
+                        });
+
                         slice.dumpBtn.SetStyles({ display: !playerAtPos.hasRequestedHandDumpThisRound ? 'flex' : 'none' });
                     } else {
                         slice.hRoot.SetStyles({ display: 'none' });
