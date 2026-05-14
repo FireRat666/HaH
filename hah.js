@@ -1106,7 +1106,7 @@
 
             const creditLabel = panel.CreateLabel(undefined, rootEl);
             await creditLabel.Async();
-            creditLabel.text = "Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nOriginally Ported to Banter by Shane\nSDK Port by FireRat\nCard Data & Logic by Chris Hallberg\nv0.8.6";
+            creditLabel.text = "Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nOriginally Ported to Banter by Shane\nSDK Port by FireRat\nCard Data & Logic by Chris Hallberg\nv0.8.7";
             creditLabel.SetStyles({ color: '#aaaaaa', fontSize: '25px', marginTop: '20px', textAlign: 'center' });
             this.ui.creditLabel = creditLabel;
 
@@ -1353,6 +1353,7 @@
                 display: 'flex', flexWrap: 'wrap', flexDirection: 'row', justifyContent: 'center',
                 width: '100%', backgroundColor: 'rgba(0,0,0,0)'
             });
+            this.ui.packsGrid = packsGrid;
 
             this.ui.packButtons = [];
             this.ui.packHeaders = [];
@@ -1364,8 +1365,11 @@
                 label.SetStyles({
                     display: 'none', color: 'white', fontSize: '28px', fontWeight: 'bold',
                     width: '100%', marginTop: '20px', marginBottom: '10px', marginLeft: '20px',
-                    textAlign: 'upper-left'
+                    textAlign: 'upper-left', backgroundColor: 'rgba(0,0,0,0)'
                 });
+                if (label.parent && label.parent.SetStyles) {
+                    label.parent.SetStyles({ backgroundColor: 'rgba(0,0,0,0)', backgroundImage: 'none' });
+                }
                 this.ui.packHeaders.push(label);
             }
 
@@ -1375,10 +1379,14 @@
                 await btn.Async();
                 
                 btn.SetStyles({
-                    display: 'none', backgroundColor: '#333333', color: 'white',
+                    display: 'none', backgroundColor: 'rgba(30, 30, 30, 0.8)', color: 'white',
                     width: '240px', height: '90px', margin: '8px', borderRadius: '10px',
                     fontSize: '18px', borderWidth: '4px', borderColor: '#aaaaaa'
                 });
+
+                if (btn.parent && btn.parent.SetStyles) {
+                    btn.parent.SetStyles({ backgroundColor: 'rgba(0,0,0,0)', backgroundImage: 'none' });
+                }
                 
                 btn.OnClick(() => {
                     const pack = this.availablePacks?.[i];
@@ -1423,7 +1431,7 @@
         }
 
         updateDeckOptionsUI() {
-            if (!this.availablePacks) return;
+            if (!this.availablePacks || !this.ui.packsGrid) return;
             
             // Hide everything first
             this.ui.packHeaders.forEach(h => h.SetStyles({ display: 'none' }));
@@ -1432,7 +1440,6 @@
             let headerIdx = 0;
             let currentOfficial = null;
             let currentSheet = null;
-            let elementOrder = 0;
 
             this.availablePacks.forEach((pack, index) => {
                 // 1. Check for main category header (Official / Unofficial)
@@ -1444,9 +1451,9 @@
                         header.SetStyles({ 
                             display: 'flex', 
                             color: currentOfficial ? '#00FFFF' : '#FFD700', 
-                            fontSize: '32px',
-                            order: elementOrder++ 
+                            fontSize: '32px'
                         });
+                        if (header.parent) this.ui.packsGrid.Add(header.parent);
                     }
                     currentSheet = null; // Reset sheet header when switching category
                 }
@@ -1461,9 +1468,9 @@
                         header.SetStyles({ 
                             display: 'flex', 
                             color: '#aaaaaa', 
-                            fontSize: '22px', 
-                            order: elementOrder++ 
+                            fontSize: '22px'
                         });
+                        if (header.parent) this.ui.packsGrid.Add(header.parent);
                     }
                 }
 
@@ -1475,7 +1482,7 @@
                     const isSelected = this.tempSelectedPacks.includes(pack.id);
 
                     let borderColor = isSelected ? '#ffffff' : '#aaaaaa';
-                    let backgroundColor = isSelected ? '#4CAF50' : '#333333';
+                    let backgroundColor = isSelected ? 'rgba(76, 175, 80, 0.9)' : 'rgba(30, 30, 30, 0.8)';
 
                     if (pack.official) {
                         borderColor = isSelected ? '#00FFFF' : '#008080';
@@ -1487,9 +1494,9 @@
                         display: 'flex',
                         backgroundColor: backgroundColor,
                         borderColor: borderColor,
-                        borderWidth: isSelected ? '4px' : '2px',
-                        order: elementOrder++
+                        borderWidth: isSelected ? '4px' : '2px'
                     });
+                    if (btn.parent) this.ui.packsGrid.Add(btn.parent);
                 }
             });
         }
