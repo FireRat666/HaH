@@ -66,12 +66,13 @@
         listPacks() {
             let packs = [];
             let id = 0;
-            for (let { name, official, description, icon, white, black } of this.deck) {
+            for (let { name, official, description, icon, white, black, sheetName } of this.deck) {
             let pack = {
                 id,
                 name,
                 official,
                 description,
+                sheetName,
                 counts: {
                 white: white.length,
                 black: black.length,
@@ -221,10 +222,17 @@
                 this.log(`Loading decks from compact json...`);
                 this.cahDeck = await CAHDeck.fromCompact(`${DOMAIN}decks/cah-all-compact.json`);
                 this.availablePacks = this.cahDeck.listPacks().sort((a, b) => {
-                    // Sort by official status first (true comes before false)
-                    if (a.official && !b.official) return -1;
-                    if (!a.official && b.official) return 1;
-                    // Then sort alphabetically by name
+                    // 1. Official status (official first)
+                    if (a.official !== b.official) {
+                        return a.official ? -1 : 1;
+                    }
+                    // 2. Sheet Name (alphabetical)
+                    const sheetA = a.sheetName || "Other";
+                    const sheetB = b.sheetName || "Other";
+                    if (sheetA !== sheetB) {
+                        return sheetA.localeCompare(sheetB);
+                    }
+                    // 3. Pack Name (alphabetical)
                     return a.name.localeCompare(b.name);
                 });
                 
@@ -1347,7 +1355,20 @@
             });
 
             this.ui.packButtons = [];
+            this.ui.packHeaders = [];
             
+            const MAX_HEADERS = 100;
+            for (let i = 0; i < MAX_HEADERS; i++) {
+                const label = panel.CreateLabel(undefined, packsGrid);
+                await label.Async();
+                label.SetStyles({
+                    display: 'none', color: 'white', fontSize: '28px', fontWeight: 'bold',
+                    width: '100%', marginTop: '20px', marginBottom: '10px', marginLeft: '20px',
+                    textAlign: 'upper-left'
+                });
+                this.ui.packHeaders.push(label);
+            }
+
             const MAX_PACKS = 500;
             for (let i = 0; i < MAX_PACKS; i++) {
                 const btn = panel.CreateButton(packsGrid);
@@ -1404,30 +1425,71 @@
         updateDeckOptionsUI() {
             if (!this.availablePacks) return;
             
-            this.ui.packButtons.forEach((btn, index) => {
-                const pack = this.availablePacks[index];
-                if (pack) {
+            // Hide everything first
+            this.ui.packHeaders.forEach(h => h.SetStyles({ display: 'none' }));
+            this.ui.packButtons.forEach(b => b.SetStyles({ display: 'none' }));
+
+            let headerIdx = 0;
+            let currentOfficial = null;
+            let currentSheet = null;
+            let elementOrder = 0;
+
+            this.availablePacks.forEach((pack, index) => {
+                // 1. Check for main category header (Official / Unofficial)
+                if (pack.official !== currentOfficial) {
+                    currentOfficial = pack.official;
+                    const header = this.ui.packHeaders[headerIdx++];
+                    if (header) {
+                        header.text = currentOfficial ? "OFFICIAL PACKS" : "UNOFFICIAL PACKS";
+                        header.SetStyles({ 
+                            display: 'flex', 
+                            color: currentOfficial ? '#00FFFF' : '#FFD700', 
+                            fontSize: '32px',
+                            order: elementOrder++ 
+                        });
+                    }
+                    currentSheet = null; // Reset sheet header when switching category
+                }
+
+                // 2. Check for sheet header
+                const sheetName = pack.sheetName || "Other";
+                if (sheetName !== currentSheet) {
+                    currentSheet = sheetName;
+                    const header = this.ui.packHeaders[headerIdx++];
+                    if (header) {
+                        header.text = `--- ${currentSheet.toUpperCase()} ---`;
+                        header.SetStyles({ 
+                            display: 'flex', 
+                            color: '#aaaaaa', 
+                            fontSize: '22px', 
+                            order: elementOrder++ 
+                        });
+                    }
+                }
+
+                // 3. Setup the button
+                const btn = this.ui.packButtons[index];
+                if (btn) {
                     let officialLabel = pack.official ? " (Official)" : " (Unofficial)";
                     btn.text = this.wrapText(pack.name + officialLabel, 22);
                     const isSelected = this.tempSelectedPacks.includes(pack.id);
 
-                    let borderColor = isSelected ? '#ffffff' : '#aaaaaa'; // Default border color
-                    let backgroundColor = isSelected ? '#4CAF50' : '#333333'; // Default background color
+                    let borderColor = isSelected ? '#ffffff' : '#aaaaaa';
+                    let backgroundColor = isSelected ? '#4CAF50' : '#333333';
 
                     if (pack.official) {
-                        borderColor = isSelected ? '#00FFFF' : '#008080'; // Cyan for official selected, Teal for official unselected
+                        borderColor = isSelected ? '#00FFFF' : '#008080';
                     } else {
-                        borderColor = isSelected ? '#FFD700' : '#B8860B'; // Gold for unofficial selected, DarkGoldenrod for unofficial unselected
+                        borderColor = isSelected ? '#FFD700' : '#B8860B';
                     }
 
                     btn.SetStyles({
                         display: 'flex',
                         backgroundColor: backgroundColor,
                         borderColor: borderColor,
-                        borderWidth: isSelected ? '4px' : '2px' // Make selected border a bit thicker
+                        borderWidth: isSelected ? '4px' : '2px',
+                        order: elementOrder++
                     });
-                } else {
-                    btn.SetStyles({ display: 'none' });
                 }
             });
         }
