@@ -1106,7 +1106,7 @@
 
             const creditLabel = panel.CreateLabel(undefined, rootEl);
             await creditLabel.Async();
-            creditLabel.text = "Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nOriginally Ported to Banter by Shane\nSDK Port by FireRat\nCard Data & Logic by Chris Hallberg\nv0.8.7.1";
+            creditLabel.text = "Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nOriginally Ported to Banter by Shane\nSDK Port by FireRat\nCard Data & Logic by Chris Hallberg\nv0.8.7.2";
             creditLabel.SetStyles({ color: '#aaaaaa', fontSize: '25px', marginTop: '20px', textAlign: 'center' });
             this.ui.creditLabel = creditLabel;
 
@@ -1356,30 +1356,57 @@
             this.ui.packsGrid = packsGrid;
 
             this.ui.packButtons = [];
-            this.ui.packHeaders = [];
             
-            const MAX_HEADERS = 100;
-            for (let i = 0; i < MAX_HEADERS; i++) {
-                const label = panel.CreateLabel(undefined, packsGrid);
-                await label.Async();
-                label.SetStyles({
-                    display: 'none', color: 'white', fontSize: '28px', fontWeight: 'bold',
-                    width: '100%', marginTop: '20px', marginBottom: '10px', marginLeft: '20px',
-                    textAlign: 'upper-left', backgroundColor: 'rgba(0,0,0,0)'
-                });
-                if (label.parent && label.parent.SetStyles) {
-                    label.parent.SetStyles({ backgroundColor: 'rgba(0,0,0,0)', backgroundImage: 'none', width: '100%' });
-                }
-                this.ui.packHeaders.push(label);
-            }
+            if (!this.availablePacks) return;
 
-            const MAX_PACKS = 500;
-            for (let i = 0; i < MAX_PACKS; i++) {
+            let currentOfficial = null;
+            let currentSheet = null;
+
+            for (const pack of this.availablePacks) {
+                // 1. Category Header (Official / Unofficial)
+                if (pack.official !== currentOfficial) {
+                    currentOfficial = pack.official;
+                    const header = panel.CreateLabel(undefined, packsGrid);
+                    await header.Async();
+                    header.text = currentOfficial ? "OFFICIAL PACKS" : "UNOFFICIAL PACKS";
+                    header.SetStyles({ 
+                        display: 'flex', color: currentOfficial ? '#00FFFF' : '#FFD700', 
+                        fontSize: '32px', fontWeight: 'bold', width: '100%',
+                        marginTop: '20px', marginBottom: '10px', marginLeft: '20px',
+                        textAlign: 'upper-left', backgroundColor: 'rgba(0,0,0,0)'
+                    });
+                    if (header.parent && header.parent.SetStyles) {
+                        header.parent.SetStyles({ backgroundColor: 'rgba(0,0,0,0)', backgroundImage: 'none', width: '100%' });
+                    }
+                    currentSheet = null; 
+                }
+
+                // 2. Sheet Header
+                const sheetName = pack.sheetName || "Other";
+                if (sheetName !== currentSheet) {
+                    currentSheet = sheetName;
+                    const header = panel.CreateLabel(undefined, packsGrid);
+                    await header.Async();
+                    header.text = `--- ${currentSheet.toUpperCase()} ---`;
+                    header.SetStyles({ 
+                        display: 'flex', color: '#aaaaaa', fontSize: '22px', fontWeight: 'bold', 
+                        width: '100%', marginTop: '15px', marginBottom: '8px', marginLeft: '25px',
+                        textAlign: 'upper-left', backgroundColor: 'rgba(0,0,0,0)'
+                    });
+                    if (header.parent && header.parent.SetStyles) {
+                        header.parent.SetStyles({ backgroundColor: 'rgba(0,0,0,0)', backgroundImage: 'none', width: '100%' });
+                    }
+                }
+
+                // 3. Pack Button
                 const btn = panel.CreateButton(packsGrid);
                 await btn.Async();
                 
+                let officialLabel = pack.official ? " (Official)" : " (Unofficial)";
+                btn.text = this.wrapText(pack.name + officialLabel, 22);
+                
                 btn.SetStyles({
-                    display: 'none', backgroundColor: 'rgba(30, 30, 30, 0.8)', color: 'white',
+                    display: 'flex', backgroundColor: 'rgba(30, 30, 30, 0.8)', color: 'white',
                     width: '240px', height: '90px', margin: '8px', borderRadius: '10px',
                     fontSize: '18px', borderWidth: '4px', borderColor: '#aaaaaa'
                 });
@@ -1389,8 +1416,6 @@
                 }
                 
                 btn.OnClick(() => {
-                    const pack = this.availablePacks?.[i];
-                    if (!pack) return;
                     const packId = pack.id;
                     if (this.tempSelectedPacks.includes(packId)) {
                         if (this.tempSelectedPacks.length > 1) {
@@ -1402,7 +1427,7 @@
                     this.updateDeckOptionsUI();
                 });
                 
-                this.ui.packButtons.push(btn);
+                this.ui.packButtons.push({ btn, pack });
             }
 
             const btnsRow = panel.CreateVisualElement(this.ui.deckOptionsOverlay);
@@ -1431,86 +1456,25 @@
         }
 
         updateDeckOptionsUI() {
-            if (!this.availablePacks || !this.ui.packsGrid) return;
+            if (!this.ui.packButtons) return;
             
-            // Hide everything first
-            this.ui.packHeaders.forEach(h => {
-                h.SetStyles({ display: 'none' });
-                if (h.parent) h.parent.SetStyles({ display: 'none' });
-            });
-            this.ui.packButtons.forEach(b => {
-                b.SetStyles({ display: 'none' });
-                if (b.parent) b.parent.SetStyles({ display: 'none' });
-            });
+            this.ui.packButtons.forEach(({ btn, pack }) => {
+                const isSelected = this.tempSelectedPacks.includes(pack.id);
 
-            let headerIdx = 0;
-            let currentOfficial = null;
-            let currentSheet = null;
-            let elementOrder = 0;
+                let borderColor = isSelected ? '#ffffff' : '#aaaaaa';
+                let backgroundColor = isSelected ? 'rgba(76, 175, 80, 0.9)' : 'rgba(30, 30, 30, 0.8)';
 
-            this.availablePacks.forEach((pack, index) => {
-                // 1. Check for main category header (Official / Unofficial)
-                if (pack.official !== currentOfficial) {
-                    currentOfficial = pack.official;
-                    const header = this.ui.packHeaders[headerIdx++];
-                    if (header) {
-                        header.text = currentOfficial ? "OFFICIAL PACKS" : "UNOFFICIAL PACKS";
-                        header.SetStyles({ 
-                            display: 'flex', 
-                            color: currentOfficial ? '#00FFFF' : '#FFD700', 
-                            fontSize: '32px'
-                        });
-                        if (header.parent) {
-                            header.parent.SetStyles({ display: 'flex', order: elementOrder++ });
-                        }
-                    }
-                    currentSheet = null; // Reset sheet header when switching category
+                if (pack.official) {
+                    borderColor = isSelected ? '#00FFFF' : '#008080';
+                } else {
+                    borderColor = isSelected ? '#FFD700' : '#B8860B';
                 }
 
-                // 2. Check for sheet header
-                const sheetName = pack.sheetName || "Other";
-                if (sheetName !== currentSheet) {
-                    currentSheet = sheetName;
-                    const header = this.ui.packHeaders[headerIdx++];
-                    if (header) {
-                        header.text = `--- ${currentSheet.toUpperCase()} ---`;
-                        header.SetStyles({ 
-                            display: 'flex', 
-                            color: '#aaaaaa', 
-                            fontSize: '22px'
-                        });
-                        if (header.parent) {
-                            header.parent.SetStyles({ display: 'flex', order: elementOrder++ });
-                        }
-                    }
-                }
-
-                // 3. Setup the button
-                const btn = this.ui.packButtons[index];
-                if (btn) {
-                    let officialLabel = pack.official ? " (Official)" : " (Unofficial)";
-                    btn.text = this.wrapText(pack.name + officialLabel, 22);
-                    const isSelected = this.tempSelectedPacks.includes(pack.id);
-
-                    let borderColor = isSelected ? '#ffffff' : '#aaaaaa';
-                    let backgroundColor = isSelected ? 'rgba(76, 175, 80, 0.9)' : 'rgba(30, 30, 30, 0.8)';
-
-                    if (pack.official) {
-                        borderColor = isSelected ? '#00FFFF' : '#008080';
-                    } else {
-                        borderColor = isSelected ? '#FFD700' : '#B8860B';
-                    }
-
-                    btn.SetStyles({
-                        display: 'flex',
-                        backgroundColor: backgroundColor,
-                        borderColor: borderColor,
-                        borderWidth: isSelected ? '4px' : '2px'
-                    });
-                    if (btn.parent) {
-                        btn.parent.SetStyles({ display: 'flex', order: elementOrder++ });
-                    }
-                }
+                btn.SetStyles({
+                    backgroundColor: backgroundColor,
+                    borderColor: borderColor,
+                    borderWidth: isSelected ? '4px' : '2px'
+                });
             });
         }
 
