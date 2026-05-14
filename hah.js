@@ -1106,7 +1106,7 @@
 
             const creditLabel = panel.CreateLabel(undefined, rootEl);
             await creditLabel.Async();
-            creditLabel.text = "Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nOriginally Ported to Banter by Shane\nSDK Port by FireRat\nCard Data & Logic by Chris Hallberg\nv0.8.7";
+            creditLabel.text = "Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nOriginally Ported to Banter by Shane\nSDK Port by FireRat\nCard Data & Logic by Chris Hallberg\nv0.8.7.1";
             creditLabel.SetStyles({ color: '#aaaaaa', fontSize: '25px', marginTop: '20px', textAlign: 'center' });
             this.ui.creditLabel = creditLabel;
 
@@ -1368,7 +1368,7 @@
                     textAlign: 'upper-left', backgroundColor: 'rgba(0,0,0,0)'
                 });
                 if (label.parent && label.parent.SetStyles) {
-                    label.parent.SetStyles({ backgroundColor: 'rgba(0,0,0,0)', backgroundImage: 'none' });
+                    label.parent.SetStyles({ backgroundColor: 'rgba(0,0,0,0)', backgroundImage: 'none', width: '100%' });
                 }
                 this.ui.packHeaders.push(label);
             }
@@ -1434,12 +1434,19 @@
             if (!this.availablePacks || !this.ui.packsGrid) return;
             
             // Hide everything first
-            this.ui.packHeaders.forEach(h => h.SetStyles({ display: 'none' }));
-            this.ui.packButtons.forEach(b => b.SetStyles({ display: 'none' }));
+            this.ui.packHeaders.forEach(h => {
+                h.SetStyles({ display: 'none' });
+                if (h.parent) h.parent.SetStyles({ display: 'none' });
+            });
+            this.ui.packButtons.forEach(b => {
+                b.SetStyles({ display: 'none' });
+                if (b.parent) b.parent.SetStyles({ display: 'none' });
+            });
 
             let headerIdx = 0;
             let currentOfficial = null;
             let currentSheet = null;
+            let elementOrder = 0;
 
             this.availablePacks.forEach((pack, index) => {
                 // 1. Check for main category header (Official / Unofficial)
@@ -1453,7 +1460,9 @@
                             color: currentOfficial ? '#00FFFF' : '#FFD700', 
                             fontSize: '32px'
                         });
-                        if (header.parent) this.ui.packsGrid.Add(header.parent);
+                        if (header.parent) {
+                            header.parent.SetStyles({ display: 'flex', order: elementOrder++ });
+                        }
                     }
                     currentSheet = null; // Reset sheet header when switching category
                 }
@@ -1470,7 +1479,9 @@
                             color: '#aaaaaa', 
                             fontSize: '22px'
                         });
-                        if (header.parent) this.ui.packsGrid.Add(header.parent);
+                        if (header.parent) {
+                            header.parent.SetStyles({ display: 'flex', order: elementOrder++ });
+                        }
                     }
                 }
 
@@ -1496,7 +1507,9 @@
                         borderColor: borderColor,
                         borderWidth: isSelected ? '4px' : '2px'
                     });
-                    if (btn.parent) this.ui.packsGrid.Add(btn.parent);
+                    if (btn.parent) {
+                        btn.parent.SetStyles({ display: 'flex', order: elementOrder++ });
+                    }
                 }
             });
         }
