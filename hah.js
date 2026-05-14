@@ -1339,7 +1339,7 @@
             const scrollArea = panel.CreateScrollView(this.ui.deckOptionsOverlay);
             await scrollArea.Async();
             scrollArea.SetStyles({
-                width: '850px', height: '650px', backgroundColor: 'rgba(0,0,0,0.9)',
+                width: '850px', height: '650px', backgroundColor: 'rgba(0,0,0,0.97)',
                 overflow: 'scroll', marginBottom: '20px'
             });
             
@@ -1389,7 +1389,7 @@
                     await header.Async();
                     header.text = `--- ${currentSheet.toUpperCase()} ---`;
                     header.SetStyles({ 
-                        display: 'flex', color: '#aaaaaa', fontSize: '22px', fontWeight: 'bold', 
+                        display: 'flex', color: '#ddddddff', fontSize: '22px', fontWeight: 'bold', 
                         width: '100%', marginTop: '15px', marginBottom: '8px', marginLeft: '25px',
                         textAlign: 'upper-left', backgroundColor: 'rgba(0,0,0,0)'
                     });
@@ -1407,7 +1407,7 @@
                 
                 btn.SetStyles({
                     display: 'flex', backgroundColor: 'rgba(30, 30, 30, 0.8)', color: 'white',
-                    width: '240px', height: '90px', margin: '8px', borderRadius: '10px',
+                    width: '240px', height: '130px', margin: '6px', borderRadius: '10px',
                     fontSize: '18px', borderWidth: '4px', borderColor: '#aaaaaa'
                 });
 
