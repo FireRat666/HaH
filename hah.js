@@ -13,7 +13,10 @@
     class CAHDeck {
         _hydrateCompact(json) {
             let packs = [];
-            let sourcePacks = json.packs || (json.metadata ? Object.values(json.metadata) : []);
+            let sourcePacks = Array.isArray(json.packs) ? json.packs
+                : json.packs ? Object.values(json.packs)
+                : json.metadata ? Object.values(json.metadata)
+                : [];
             for (let pack of sourcePacks) {
             pack.white = pack.white.map((index) =>
                 Object.assign(
@@ -1106,7 +1109,7 @@
 
             const creditLabel = panel.CreateLabel(undefined, rootEl);
             await creditLabel.Async();
-            creditLabel.text = "Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nOriginally Ported to Banter by Shane\nSDK Port by FireRat\nCard Data & Logic by Chris Hallberg\nv0.8.7.2";
+            creditLabel.text = "Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nOriginally Ported to Banter by Shane\nSDK Port by FireRat\nCard Data & Logic by Chris Hallberg\nv0.8.7.3";
             creditLabel.SetStyles({ color: '#aaaaaa', fontSize: '25px', marginTop: '20px', textAlign: 'center' });
             this.ui.creditLabel = creditLabel;
 
