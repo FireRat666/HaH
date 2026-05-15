@@ -23,9 +23,8 @@ You can customize the game by adding attributes to the `<script>` tag that loads
 Here's an example of how you might use it:
 
 ```html
-<script src="https://your-static-host.com/hah.js"
-        position="0 1 -5" 
-        rotation="0 90 0" 
+<script src="https://hah.firer.at/hah.js"
+        position="0 -0.4 -5"
         instance="my-private-game"></script>
 ```
 
