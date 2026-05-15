@@ -44,17 +44,3 @@ If you are the Host (or if you claim Host in an empty room), you can configure t
 2. Scroll through the available expansions and click to toggle them on or off (green means selected).
 3. Click **SAVE DECKS** to commit your choices.
 4. Click **START ROUND** to begin the game!
-
-## Deck Formatting Tool - For Older Version
-
-To make it easier to use custom card decks, this project includes a utility called `formatter.html`. This tool allows you to convert card decks from [CrCast](https://cast.clrtd.com/) (Cards Against Humanity online) into a format compatible with Holograms Against Humanity.
-
-### How to Use `formatter.html`
-
-1.  **Open the Formatter**: Go to the hosted formatter tool at [https://banter-hah.firer.at/formatter.html](https://banter-hah.firer.at/formatter.html) in your web browser.
-2.  **Get CrCast Deck Code**:
-    *   Go to [CrCast](https://cast.clrtd.com/) to find a deck.
-    *   If the deck code doesn't work directly in the formatter, you may need to manually extract the JSON. Use the [API](https://cast.clrtd.com/api) URL and insert the deck code.
-    *   Example API URL: `https://api.crcast.cc/v1/cc/decks/CODE/cards/` (replace `CODE` with the actual deck code).
-3.  **Paste JSON Data**: Copy the RAW JSON Data (either directly from CrCast if it works, or from the API if manual extraction was needed) and paste it into the input box on the formatter page.
-4.  **Format and Copy**: Click the "Format" button. You can then copy the formatted JSON, which is ready to be used with Holograms Against Humanity.
