@@ -2,7 +2,7 @@
     let scene;
     let currentScript = document.currentScript;
 
-    const DOMAIN = "https://banter-hah.firer.at/";
+    const DOMAIN = "https://hah.firer.at/";
     const MAX_PLAYERS = 10;
     const MAX_HAND_CARDS = 12;
     const MAX_SUPPORTED_RESPONSES = 3;
