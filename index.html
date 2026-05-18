@@ -23,9 +23,13 @@
             transform.localPosition = new BS.Vector3(0, -0.05, 0); // Flush with 0
         }
 
-        window.addEventListener("bs-loaded", async () => {
-            createFloor();
-        });
+        if (window.BS) {
+          createFloor();
+        } else {
+          window.addEventListener("bs-loaded", async () => {
+            setTimeout(() => { createFloor(); }, 500);
+          });
+        }
       </script>
   </body>
 </html>
