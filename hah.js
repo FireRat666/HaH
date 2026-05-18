@@ -979,7 +979,6 @@
             const dumpBtn = await createBtn(hPanel, actionsRow, "DUMP HAND", "#F44336", () => {
                 this.confirm("Dump hand ?\nNext Round you will have new cards!", () => {
                     this.sendAction("dump-hand");
-                    this.selectedCardIds = [];
                 });
             });
 
@@ -1120,7 +1119,7 @@
 
             const creditLabel = panel.CreateLabel(undefined, rootEl);
             await creditLabel.Async();
-            creditLabel.text = "Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nOriginally Ported to Banter by Shane\nSDK Port by FireRat\nCard Data & Logic by Chris Hallberg\nv0.8.7.3";
+            creditLabel.text = "Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nOriginally Ported to Banter by Shane\nSDK Port by FireRat\nCard Data & Logic by Chris Hallberg\nv0.8.7.4";
             creditLabel.SetStyles({ color: '#aaaaaa', fontSize: '25px', marginTop: '20px', textAlign: 'center' });
             this.ui.creditLabel = creditLabel;
 
