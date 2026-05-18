@@ -1392,7 +1392,7 @@
                     await header.Async();
                     header.text = `--- ${currentSheet.toUpperCase()} ---`;
                     header.SetStyles({ 
-                        display: 'flex', color: '#ddddddff', fontSize: '22px', fontWeight: 'bold', 
+                        display: 'flex', color: 'rgba(221, 221, 221, 1)', fontSize: '22px', fontWeight: 'bold', 
                         width: '100%', marginTop: '15px', marginBottom: '8px', marginLeft: '25px',
                         textAlign: 'upper-left', backgroundColor: 'rgba(0,0,0,0)'
                     });
