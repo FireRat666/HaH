@@ -869,7 +869,7 @@
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '40px',
+                // Removed: gap: '40px',
                 width: '100%',
                 height: '100%',
                 paddingLeft: '30px',
@@ -886,12 +886,12 @@
             const nameText = sPanel.CreateLabel(undefined, sRoot);
             await nameText.Async();
             nameText.text = "Empty Seat";
-            nameText.SetStyles({ color: 'white', fontSize: '36px', fontWeight: 'bold' });
+            nameText.SetStyles({ color: 'white', fontSize: '36px', fontWeight: 'bold', marginRight: '40px' });
 
             const statusText = sPanel.CreateLabel(undefined, sRoot);
             await statusText.Async();
             statusText.text = "";
-            statusText.SetStyles({ color: '#ffcc00', fontSize: '32px' });
+            statusText.SetStyles({ color: '#ffcc00', fontSize: '32px', marginRight: '40px' });
 
             const timerText = sPanel.CreateLabel(undefined, sRoot);
             await timerText.Async();
@@ -915,7 +915,10 @@
                 display: 'none',
                 flexDirection: 'column',
                 alignItems: 'center',
-                padding: '20px',
+                paddingTop: '20px',
+                paddingBottom: '20px',
+                paddingLeft: '20px',
+                paddingRight: '20px',
                 borderRadius: '25px',
                 borderWidth: '3px',
                 borderColor: '#666666'
@@ -927,10 +930,10 @@
 
             const actionsRow = hPanel.CreateVisualElement(hRoot);
             await actionsRow.Async();
-            actionsRow.SetStyles({ 
-                display: 'flex', 
-                flexDirection: 'row', 
-                gap: '20px', 
+            actionsRow.SetStyles({
+                display: 'flex',
+                flexDirection: 'row',
+                // Removed: gap: '20px',
                 marginBottom: '20px',
                 backgroundColor: 'rgba(0,0,0,0)'
             });
@@ -940,11 +943,11 @@
             selectionLabel.text = "";
             selectionLabel.SetStyles({ color: 'white', fontSize: '28px', fontWeight: 'bold', marginRight: '20px' });
 
-            const createBtn = async (pnl, parent, text, color, handler) => {
+            const createBtn = async (pnl, parent, text, color, handler, marginRight = '0px') => {
                 const btn = pnl.CreateButton(parent);
                 await btn.Async();
                 btn.text = text;
-                btn.SetStyles({ backgroundColor: color, color: 'white', paddingTop: '15px', paddingBottom: '15px', paddingLeft: '30px', paddingRight: '30px', borderRadius: '12px', fontSize: '25px', borderWidth: '0px' });
+                btn.SetStyles({ backgroundColor: color, color: 'white', paddingTop: '15px', paddingBottom: '15px', paddingLeft: '30px', paddingRight: '30px', borderRadius: '12px', fontSize: '25px', borderWidth: '0px', marginRight: marginRight });
                 btn.OnClick(handler);
                 return btn;
             };
@@ -968,11 +971,11 @@
                     this.selectedCardIds = [];
                     this.updateUI();
                 });
-            });
+            }, '20px');
             const resetBtn = await createBtn(hPanel, actionsRow, "RESET", "#FF9800", () => {
                 this.selectedCardIds = [];
                 this.updateUI();
-            });
+            }, '20px');
             const dumpBtn = await createBtn(hPanel, actionsRow, "DUMP HAND", "#F44336", () => {
                 this.confirm("Dump hand ?\nNext Round you will have new cards!", () => {
                     this.sendAction("dump-hand");
@@ -987,7 +990,7 @@
                 flexWrap: 'wrap',
                 flexDirection: 'row',
                 justifyContent: 'center',
-                gap: '12px',
+                // Removed: gap: '12px',
                 width: '100%',
                 height: '800px',
                 overflow: 'hidden',
@@ -1003,14 +1006,19 @@
                     width: '180px',
                     height: '250px',
                     backgroundColor: '#ffffff',
-                    padding: '15px',
+                    paddingTop: '15px',
+                    paddingBottom: '15px',
+                    paddingLeft: '15px',
+                    paddingRight: '15px',
                     borderRadius: '12px',
                     borderWidth: '4px',
                     borderColor: '#aaaaaa',
                     flexDirection: 'column',
-                    alignItems: 'flex-start'
+                    alignItems: 'flex-start',
+                    marginRight: '12px',
+                    marginBottom: '12px'
                 });
-                
+
                 const cardLabel = hPanel.CreateLabel("", cardContainer);
                 await cardLabel.Async();
                 cardLabel.SetStyles({
@@ -1038,7 +1046,7 @@
             const centralObj = await new BS.GameObject({ name: "HAH_CentralUI", parent: this.root, localPosition: new BS.Vector3(0, 2.0, 0), localScale: new BS.Vector3(0.15, 0.15, 0.15) }).Async();
             let centralBillboardObj = await centralObj.AddComponent(new BS.BanterBillboard({ smoothing: 1, enableXAxis: false, enableYAxis: true, enableZAxis: false }));
             centralBillboardObj.enableXAxis = false;
-            
+
             const panel = await centralObj.AddComponent(new BS.BanterUI(new BS.Vector2(900, 1000), false));
             const rootEl = panel.CreateVisualElement();
             await rootEl.Async();
@@ -1049,7 +1057,10 @@
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '20px',
+                paddingTop: '20px',
+                paddingBottom: '20px',
+                paddingLeft: '20px',
+                paddingRight: '20px',
                 borderRadius: '25px',
                 borderWidth: '4px',
                 borderColor: '#4a4e69',
@@ -1081,27 +1092,27 @@
 
             const buttonsRow = panel.CreateVisualElement(rootEl);
             await buttonsRow.Async();
-            buttonsRow.SetStyles({ display: 'flex', backgroundColor: 'rgba(0,0,0,0)', backgroundImage: 'none', flexDirection: 'row', gap: '20px', marginBottom: '20px', borderWidth: '0px', padding: '5px', margin: '5px' });
+            buttonsRow.SetStyles({ display: 'flex', backgroundColor: 'rgba(0,0,0,0)', backgroundImage: 'none', flexDirection: 'row', /* Removed: gap: '20px', */ marginBottom: '20px', borderWidth: '0px', paddingTop: '5px', paddingBottom: '5px', paddingLeft: '5px', paddingRight: '5px', marginTop: '5px', marginBottom: '5px', marginLeft: '5px', marginRight: '5px' });
 
-            const createBtn = async (parent, text, color, handler) => {
+            const createBtn = async (parent, text, color, handler, marginRight = '0px') => {
                 const btn = panel.CreateButton(parent);
                 await btn.Async();
-                
+
                 if (btn.parent && btn.parent.SetStyles) {
                     btn.parent.SetStyles({ backgroundColor: 'rgba(0,0,0,0)', backgroundImage: 'none' });
                 }
 
                 btn.text = text;
-                btn.SetStyles({ backgroundColor: color, color: 'white', paddingTop: '15px', paddingBottom: '15px', paddingLeft: '30px', paddingRight: '30px', borderRadius: '8px', fontSize: '24px', borderWidth: '0px', backgroundImage: 'none', margin: '8px' });
+                btn.SetStyles({ backgroundColor: color, color: 'white', paddingTop: '15px', paddingBottom: '15px', paddingLeft: '30px', paddingRight: '30px', borderRadius: '8px', fontSize: '24px', borderWidth: '0px', backgroundImage: 'none', margin: '8px', marginRight: marginRight });
                 btn.OnClick(handler);
                 return btn;
             };
 
-            this.ui.joinBtn = await createBtn(buttonsRow, "JOIN GAME", "#2196F3", () => this.sendAction("join-game"));
-            this.ui.dealBtn = await createBtn(buttonsRow, "START ROUND", "#4CAF50", () => this.sendAction("start-game"));
-            this.ui.deckOptionsBtn = await createBtn(buttonsRow, "DECK OPTIONS", "#FF9800", () => this.openDeckOptionsUI());
-            this.ui.leaveBtn = await createBtn(buttonsRow, "LEAVE GAME", "#F44336", () => this.confirm("Leave game?", () => this.sendAction("leave-game")));
-            this.ui.claimHostBtn = await createBtn(buttonsRow, "CLAIM HOST", "#9C27B0", () => this.sendAction("claim-host"));
+            this.ui.joinBtn = await createBtn(buttonsRow, "JOIN GAME", "#2196F3", () => this.sendAction("join-game"), '20px');
+            this.ui.dealBtn = await createBtn(buttonsRow, "START ROUND", "#4CAF50", () => this.sendAction("start-game"), '20px');
+            this.ui.deckOptionsBtn = await createBtn(buttonsRow, "DECK OPTIONS", "#FF9800", () => this.openDeckOptionsUI(), '20px');
+            this.ui.leaveBtn = await createBtn(buttonsRow, "LEAVE GAME", "#F44336", () => this.confirm("Leave game?", () => this.sendAction("leave-game")), '20px');
+            this.ui.claimHostBtn = await createBtn(buttonsRow, "CLAIM HOST", "#9C27B0", () => this.sendAction("claim-host"), '20px');
             this.ui.muteBtn = await createBtn(buttonsRow, "🔊", "#607D8B", () => {
                 this.isMuted = !this.isMuted;
                 this.ui.muteBtn.text = this.isMuted ? "🔇" : "🔊";
@@ -1121,7 +1132,10 @@
                 width: '450px',
                 height: '300px',
                 backgroundColor: 'black',
-                padding: '25px',
+                paddingTop: '25px',
+                paddingBottom: '25px',
+                paddingLeft: '25px',
+                paddingRight: '25px',
                 borderRadius: '20px',
                 borderWidth: '2px',
                 borderColor: 'white',
@@ -1143,7 +1157,7 @@
             });
 
             this.ui.blackCard = { container: blackCardContainer, label: blackCardLabel };
-            
+
             this.ui.blackCard.container.OnClick(() => {
                 if (this.gameState?.czar === scene.localUser.uid && !this.gameState?.showBlack) {
                     this.sendAction("show-black");
@@ -1154,11 +1168,11 @@
             const winnerLabel = panel.CreateLabel(undefined, rootEl);
             await winnerLabel.Async();
             winnerLabel.text = "";
-            winnerLabel.SetStyles({ 
-                display: 'none', 
-                color: '#ffcc00', 
-                fontSize: '48px', 
-                fontWeight: 'bold', 
+            winnerLabel.SetStyles({
+                display: 'none',
+                color: '#ffcc00',
+                fontSize: '48px',
+                fontWeight: 'bold',
                 marginBottom: '20px',
                 backgroundColor: 'rgba(0,0,0,0.5)',
                 paddingTop: '10px',
@@ -1173,7 +1187,7 @@
             // Czar Responses Area
             const czarResponsesRow = panel.CreateVisualElement(rootEl);
             await czarResponsesRow.Async();
-            czarResponsesRow.SetStyles({ display: 'none', flexDirection: 'row', gap: '15px', marginBottom: '20px', backgroundColor: 'rgba(0,0,0,0)', backgroundImage: 'none' });
+            czarResponsesRow.SetStyles({ display: 'none', flexDirection: 'row', /* Removed: gap: '15px', */ marginBottom: '20px', backgroundColor: 'rgba(0,0,0,0)', backgroundImage: 'none' });
             this.ui.czarResponsesRow = czarResponsesRow;
 
             this.ui.czarResponseCards = [];
@@ -1185,13 +1199,19 @@
                     width: '260px',
                     height: '320px',
                     backgroundColor: 'white',
-                    padding: '20px',
+                    paddingTop: '20px',
+                    paddingBottom: '20px',
+                    paddingLeft: '20px',
+                    paddingRight: '20px',
                     borderRadius: '15px',
                     borderWidth: '4px',
                     borderColor: '#aaaaaa',
                     flexDirection: 'column',
                     alignItems: 'flex-start',
-                    margin: '8px',
+                    marginTop: '8px',
+                    marginBottom: '8px',
+                    marginLeft: '8px',
+                    marginRight: '15px', // Added marginRight
                     backgroundImage: 'none'
                 });
 
@@ -1212,7 +1232,7 @@
             // Czar Controls
             const czarControlsRow = panel.CreateVisualElement(rootEl);
             await czarControlsRow.Async();
-            czarControlsRow.SetStyles({ display: 'none', flexDirection: 'row', gap: '15px', backgroundColor: 'rgba(0,0,0,0)', backgroundImage: 'none' });
+            czarControlsRow.SetStyles({ display: 'none', flexDirection: 'row', /* Removed: gap: '15px', */ backgroundColor: 'rgba(0,0,0,0)', backgroundImage: 'none' });
             this.ui.czarControlsRow = czarControlsRow;
 
             this.ui.czarPrevBtn = await createBtn(czarControlsRow, "PREV", "#555", () => {
@@ -1221,7 +1241,7 @@
                     .sort((a, b) => a._id.localeCompare(b._id));
                 const nextIdx = Math.max(0, (this.gameState.currentPreviewResponse || 0) - 1);
                 this.sendAction("preview-response", nextIdx);
-            });
+            }, '15px');
             this.ui.czarWinnerBtn = await createBtn(czarControlsRow, "CHOOSE WINNER", "#4CAF50", () => {
                 const responders = Object.values(this.gameState.players)
                     .filter(p => p._id !== this.gameState.czar && p.selected && p.selected.length > 0)
@@ -1230,7 +1250,7 @@
                 if (activeResponse) {
                     this.confirm(`Crown this card(s) the winner?`, () => this.sendAction("choose-winner", activeResponse._id), activeResponse.selected);
                 }
-            });
+            }, '15px');
             this.ui.czarNextBtn = await createBtn(czarControlsRow, "NEXT", "#555", () => {
                 const responders = Object.values(this.gameState.players)
                     .filter(p => p._id !== this.gameState.czar && p.selected && p.selected.length > 0)
@@ -1261,17 +1281,17 @@
 
             const confirmCardsRow = panel.CreateVisualElement(this.ui.confirmOverlay);
             await confirmCardsRow.Async();
-            confirmCardsRow.SetStyles({ 
-                display: 'flex', 
-                flexDirection: 'row', 
-                gap: '25px', 
+            confirmCardsRow.SetStyles({
+                display: 'flex',
+                flexDirection: 'row',
+                // Removed: gap: '25px',
                 marginBottom: '30px',
                 justifyContent: 'center',
                 alignItems: 'center',
                 width: '100%',
                 backgroundColor: 'rgba(0,0,0,0)'
             });
-            
+
             this.ui.confirmCardSlots = [];
             for (let i = 0; i < MAX_SUPPORTED_RESPONSES; i++) {
                 const cardContainer = panel.CreateVisualElement(confirmCardsRow);
@@ -1281,12 +1301,16 @@
                     width: '250px',
                     height: '320px',
                     backgroundColor: 'white',
-                    padding: '20px',
+                    paddingTop: '20px',
+                    paddingBottom: '20px',
+                    paddingLeft: '20px',
+                    paddingRight: '20px',
                     borderRadius: '15px',
                     borderWidth: '4px',
                     borderColor: '#666666',
                     flexDirection: 'column',
-                    alignItems: 'flex-start'
+                    alignItems: 'flex-start',
+                    marginRight: '25px' // Added marginRight
                 });
 
                 const cardLabel = panel.CreateLabel(undefined, cardContainer);
@@ -1305,23 +1329,23 @@
 
             const confirmBtns = panel.CreateVisualElement(this.ui.confirmOverlay);
             await confirmBtns.Async();
-            confirmBtns.SetStyles({ 
-                display: 'flex', 
-                flexDirection: 'row', 
-                gap: '30px',
-                backgroundColor: 'rgba(0,0,0,0)' 
+            confirmBtns.SetStyles({
+                display: 'flex',
+                flexDirection: 'row',
+                // Removed: gap: '30px',
+                backgroundColor: 'rgba(0,0,0,0)'
             });
 
             await createBtn(confirmBtns, "CANCEL", "#F44336", () => {
                 this.isConfirmationDialogOpen = false;
                 this.ui.confirmOverlay.SetStyles({ display: 'none' });
-            });
+            }, '30px'); // Added marginRight
             await createBtn(confirmBtns, "CONFIRM", "#4CAF50", () => {
                 if (this.confirmCallback) this.confirmCallback();
                 this.isConfirmationDialogOpen = false;
                 this.ui.confirmOverlay.SetStyles({ display: 'none' });
             });
-            
+
             await this.buildDeckOptionsUI(panel, rootEl, createBtn);
         }
 
@@ -1345,7 +1369,7 @@
                 width: '850px', height: '650px', backgroundColor: 'rgba(0,0,0,0.97)',
                 overflow: 'scroll', marginBottom: '20px'
             });
-            
+
             if (scrollArea.parent && scrollArea.parent.SetStyles) {
                 scrollArea.parent.SetStyles({ backgroundColor: 'rgba(0, 0, 0, 0)', backgroundImage: 'none' });
             }
@@ -1359,7 +1383,7 @@
             this.ui.packsGrid = packsGrid;
 
             this.ui.packButtons = [];
-            
+
             if (!this.availablePacks) return;
 
             let currentOfficial = null;
@@ -1372,8 +1396,8 @@
                     const header = panel.CreateLabel(undefined, packsGrid);
                     await header.Async();
                     header.text = currentOfficial ? "OFFICIAL PACKS" : "UNOFFICIAL PACKS";
-                    header.SetStyles({ 
-                        display: 'flex', color: currentOfficial ? '#00FFFF' : '#FFD700', 
+                    header.SetStyles({
+                        display: 'flex', color: currentOfficial ? '#00FFFF' : '#FFD700',
                         fontSize: '32px', fontWeight: 'bold', width: '100%',
                         marginTop: '20px', marginBottom: '10px', marginLeft: '20px',
                         textAlign: 'upper-left', backgroundColor: 'rgba(0,0,0,0)'
@@ -1381,7 +1405,7 @@
                     if (header.parent && header.parent.SetStyles) {
                         header.parent.SetStyles({ backgroundColor: 'rgba(0,0,0,0)', backgroundImage: 'none', width: '100%' });
                     }
-                    currentSheet = null; 
+                    currentSheet = null;
                 }
 
                 // 2. Sheet Header
@@ -1391,8 +1415,8 @@
                     const header = panel.CreateLabel(undefined, packsGrid);
                     await header.Async();
                     header.text = `--- ${currentSheet.toUpperCase()} ---`;
-                    header.SetStyles({ 
-                        display: 'flex', color: 'rgba(221, 221, 221, 1)', fontSize: '22px', fontWeight: 'bold', 
+                    header.SetStyles({
+                        display: 'flex', color: 'rgba(221, 221, 221, 1)', fontSize: '22px', fontWeight: 'bold',
                         width: '100%', marginTop: '15px', marginBottom: '8px', marginLeft: '25px',
                         textAlign: 'upper-left', backgroundColor: 'rgba(0,0,0,0)'
                     });
@@ -1404,20 +1428,20 @@
                 // 3. Pack Button
                 const btn = panel.CreateButton(packsGrid);
                 await btn.Async();
-                
+
                 let officialLabel = pack.official ? " (Official)" : " (Unofficial)";
                 btn.text = this.wrapText(pack.name + officialLabel, 22);
-                
+
                 btn.SetStyles({
                     display: 'flex', backgroundColor: 'rgba(30, 30, 30, 0.8)', color: 'white',
-                    width: '240px', height: '130px', margin: '6px', borderRadius: '10px',
+                    width: '240px', height: '130px', marginTop: '6px', marginBottom: '6px', marginLeft: '6px', marginRight: '6px', borderRadius: '10px',
                     fontSize: '18px', borderWidth: '4px', borderColor: '#aaaaaa'
                 });
 
                 if (btn.parent && btn.parent.SetStyles) {
                     btn.parent.SetStyles({ backgroundColor: 'rgba(0,0,0,0)', backgroundImage: 'none' });
                 }
-                
+
                 btn.OnClick(() => {
                     const packId = pack.id;
                     if (this.tempSelectedPacks.includes(packId)) {
@@ -1429,17 +1453,17 @@
                     }
                     this.updateDeckOptionsUI();
                 });
-                
+
                 this.ui.packButtons.push({ btn, pack });
             }
 
             const btnsRow = panel.CreateVisualElement(this.ui.deckOptionsOverlay);
             await btnsRow.Async();
-            btnsRow.SetStyles({ display: 'flex', flexDirection: 'row', gap: '30px', backgroundColor: 'rgba(0,0,0,0)' });
+            btnsRow.SetStyles({ display: 'flex', flexDirection: 'row', /* Removed: gap: '30px', */ backgroundColor: 'rgba(0,0,0,0)' });
 
             await createBtn(btnsRow, "CANCEL", "#F44336", () => {
                 this.closeDeckOptionsUI();
-            });
+            }, '30px'); // Added marginRight
             await createBtn(btnsRow, "SAVE DECKS", "#4CAF50", () => {
                 this.sendAction("update-decks", this.tempSelectedPacks);
                 this.closeDeckOptionsUI();
