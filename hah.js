@@ -1119,7 +1119,7 @@
 
             const creditLabel = panel.CreateLabel(undefined, rootEl);
             await creditLabel.Async();
-            creditLabel.text = "Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nOriginally Ported to Banter by Shane\nSDK Port by FireRat\nCard Data & Logic by Chris Hallberg\nv0.8.7.4";
+            creditLabel.text = "Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nOriginally Ported to Banter by Shane\nSDK Port by FireRat\nCard Data & Logic by Chris Hallberg\nv0.8.7.5";
             creditLabel.SetStyles({ color: '#aaaaaa', fontSize: '25px', marginTop: '20px', textAlign: 'center' });
             this.ui.creditLabel = creditLabel;
 
@@ -1504,25 +1504,27 @@
             });
         }
 
-        confirm(message, callback, previewCards = null) {
+        confirm(message, callback, previewCards) { // Removed default null
             this.ui.confirmMsg.text = message;
             this.confirmCallback = callback;
             this.isConfirmationDialogOpen = true;
             this.ui.confirmOverlay.SetStyles({ display: 'flex', backgroundColor: 'rgba(10, 10, 10, 0.98)' });
 
             // Determine which cards to show in the preview slots
-            let cardsToShow = previewCards;
-            if (!cardsToShow && this.selectedCardIds.length > 0) {
+            let cardsToDisplay = [];
+            if (previewCards !== undefined) { // Check if explicitly provided
+                cardsToDisplay = previewCards;
+            } else if (this.selectedCardIds.length > 0) {
                 const localPlayer = this.gameState?.players?.[scene.localUser.uid];
                 if (localPlayer) {
-                    cardsToShow = this.selectedCardIds.map(id => localPlayer.cards.find(c => c && c._id === id)).filter(Boolean);
+                    cardsToDisplay = this.selectedCardIds.map(id => localPlayer.cards.find(c => c && c._id === id)).filter(Boolean);
                 }
             }
 
-            if (cardsToShow && cardsToShow.length > 0) {
+            if (cardsToDisplay && cardsToDisplay.length > 0) {
                 this.ui.confirmCardSlots.forEach((slot, idx) => {
-                    if (idx < cardsToShow.length) {
-                        slot.label.text = this.wrapText(cardsToShow[idx].text, 19);
+                    if (idx < cardsToDisplay.length) {
+                        slot.label.text = this.wrapText(cardsToDisplay[idx].text, 19);
                         slot.container.SetStyles({ display: 'flex' });
                     } else {
                         slot.container.SetStyles({ display: 'none' });
