@@ -979,7 +979,7 @@
             const dumpBtn = await createBtn(hPanel, actionsRow, "DUMP HAND", "#F44336", () => {
                 this.confirm("Dump hand ?\nNext Round you will have new cards!", () => {
                     this.sendAction("dump-hand");
-                });
+                }, null);
             });
 
             const cardsGrid = hPanel.CreateVisualElement(hRoot);
@@ -1110,7 +1110,7 @@
             this.ui.joinBtn = await createBtn(buttonsRow, "JOIN GAME", "#2196F3", () => this.sendAction("join-game"), '20px');
             this.ui.dealBtn = await createBtn(buttonsRow, "START ROUND", "#4CAF50", () => this.sendAction("start-game"), '20px');
             this.ui.deckOptionsBtn = await createBtn(buttonsRow, "DECK OPTIONS", "#FF9800", () => this.openDeckOptionsUI(), '20px');
-            this.ui.leaveBtn = await createBtn(buttonsRow, "LEAVE GAME", "#F44336", () => this.confirm("Leave game?", () => this.sendAction("leave-game")), '20px');
+            this.ui.leaveBtn = await createBtn(buttonsRow, "LEAVE GAME", "#F44336", () => this.confirm("Leave game?", () => this.sendAction("leave-game"), null), '20px');
             this.ui.claimHostBtn = await createBtn(buttonsRow, "CLAIM HOST", "#9C27B0", () => this.sendAction("claim-host"), '20px');
             this.ui.muteBtn = await createBtn(buttonsRow, "🔊", "#607D8B", () => {
                 this.isMuted = !this.isMuted;
