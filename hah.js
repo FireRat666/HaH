@@ -185,8 +185,15 @@
         }
 
         playLocalSound(soundFile) { // This will be called by sync
-            if (this.isMuted) return;
-            const audio = new Audio(`${DOMAIN}Assets/${soundFile}`);
+            if (this.isMuted || !soundFile) return;
+
+            // Map generic/extensionless sound names to actual files
+            let file = soundFile;
+            if (file === "leave") file = "playerKick.ogg";
+            if (file === "join") file = "playerJoin.ogg";
+            if (!file.includes(".")) file += ".ogg";
+
+            const audio = new Audio(`${DOMAIN}Assets/${file}`);
             audio.crossOrigin = "anonymous";
             audio.volume = 0.3;
             audio.play().catch(e => this.log("Sound play error:", e));
@@ -307,6 +314,7 @@
         getDefaultState() {
             return {
                 players: {},
+                leftPlayers: {}, // Track player positions when they leave: { userId: { position, timestamp } }
                 waitingRoom: [],
                 czar: null,
                 currentBlackCard: null,
@@ -652,9 +660,32 @@
                     if (!player && Object.keys(players).length < MAX_PLAYERS) {
                         const occupied = new Set(Object.values(players).map(p => p.position));
                         let pos = -1;
-                        const available = [0,1,2,3,4,5,6,7,8,9].filter(p => !occupied.has(p));
-                        if (available.length > 0) {
-                            pos = available[Math.floor(Math.random() * available.length)];
+
+                        // Clean up stale leftPlayers (older than 10 minutes)
+                        if (state.leftPlayers) {
+                            const tenMinutesAgo = Date.now() - 600000;
+                            Object.keys(state.leftPlayers).forEach(uid => {
+                                if (state.leftPlayers[uid].timestamp < tenMinutesAgo) {
+                                    delete state.leftPlayers[uid];
+                                }
+                            });
+                        }
+
+                        // Check if player has a remembered position that is still vacant
+                        if (state.leftPlayers && state.leftPlayers[userId]) {
+                            const rememberedPos = state.leftPlayers[userId].position;
+                            if (!occupied.has(rememberedPos)) {
+                                pos = rememberedPos;
+                            }
+                            delete state.leftPlayers[userId];
+                        }
+
+                        // If no remembered position or it was occupied, choose a random available one
+                        if (pos === -1) {
+                            const available = [0,1,2,3,4,5,6,7,8,9].filter(p => !occupied.has(p));
+                            if (available.length > 0) {
+                                pos = available[Math.floor(Math.random() * available.length)];
+                            }
                         }
 
                         players[userId] = {
@@ -680,6 +711,13 @@
                         if (p.cards) state.whiteDiscard.push(...p.cards.filter(Boolean));
                         if (p.selected) state.whiteDiscard.push(...p.selected.filter(Boolean));
                         
+                        // Save position in leftPlayers
+                        if (!state.leftPlayers) state.leftPlayers = {};
+                        state.leftPlayers[userId] = {
+                            position: p.position,
+                            timestamp: Date.now()
+                        };
+
                         const wasCzar = state.czar === userId;
                         delete players[userId];
 
