@@ -146,8 +146,8 @@
 
         wrapText(text, maxChars = 19) {
             if (!text) return "";
-            // Strip any existing newlines and replace with spaces, then collapse extra whitespace
-            const words = text.replace(/\n/g, ' ').split(/\s+/).filter(word => word.length > 0);
+            // Replace literal \n and actual newlines with spaces, then collapse extra whitespace
+            const words = text.replace(/\\n/g, ' ').replace(/\n/g, ' ').split(/\s+/).filter(word => word.length > 0);
             const lines = [];
             let currentLine = "";
 
@@ -343,7 +343,7 @@
         }
 
         async sendAction(action, data = {}, senderUid = null) {
-            if (!scene?.localUser || !scene?.spaceState) return;
+            if (!scene?.localUser || !scene?.spaceState) return false;
             
             const localUid = senderUid || scene.localUser.uid;
             const localName = scene.localUser.name;
@@ -361,11 +361,11 @@
                 if (state.lastAction && state.lastAction.userId === localUid && state.lastAction.action === action && JSON.stringify(state.lastAction.data) === JSON.stringify(data)) {
                     // Action already reflected, no need to retry
                     this.sync();
-                    return;
+                    return true;
                 }
 
                 const updated = this.applyGameLogic(state, action, localUid, localName, data);
-                if (!updated) return;
+                if (!updated) return false;
 
                 if (updated._triggerSound) {
                     updated.lastSound = { file: updated._triggerSound, ts: Date.now() };
@@ -385,7 +385,7 @@
                 if (postRaw && postRaw.includes(actionId)) {
                     this.gameState = updated; // Update local state immediately
                     this.updateUI();
-                    return;
+                    return true;
                 }
                 
                 this.log(`Action ${action} stomped or slow, retrying (attempt ${attempt + 1})...`);
@@ -393,6 +393,7 @@
                 await new Promise(r => setTimeout(r, 100 + Math.random() * 300));
             }
             this.log(`Failed to deliver action ${action} after 5 attempts.`);
+            return false;
         }
 
         isHost() {
@@ -709,11 +710,22 @@
                         // Set timers for responders
                         const now = Date.now();
                         Object.values(players).forEach(p => {
-                            // Only set inactivity timer for players who actually have cards (participating in this round)
-                            if (p._id !== state.czar && p.cards && p.cards.length > 0) {
+                            // Only set inactivity timer for players who actually have cards and have not yet selected cards
+                            if (p._id !== state.czar && p.cards && p.cards.length > 0 && (!p.selected || p.selected.length === 0)) {
                                 p.inactivityKickTime = now + (IDLE_TIMEOUT_SECONDS * 1000);
+                            } else {
+                                p.inactivityKickTime = 0;
                             }
                         });
+
+                        // If all active responders have already selected cards, set Czar timer to choose winner
+                        const activeResponders = Object.values(players).filter(p => p._id !== state.czar && ((p.cards && p.cards.length > 0) || (p.selected && p.selected.length > 0)));
+                        if (activeResponders.length > 0 && activeResponders.every(p => p.selected.length > 0)) {
+                            if (state.players[state.czar]) {
+                                state.players[state.czar].inactivityKickTime = now + (IDLE_TIMEOUT_SECONDS * 1000);
+                            }
+                        }
+
                         this.triggerSound(state, "card_flick.ogg");
                     }
                     break;
@@ -966,9 +978,13 @@
                 this.confirm("Submit these cards?", async () => {
                     this._isSubmitting = true;
                     this.updateUI();
-                    await this.sendAction("choose-cards", cardsToSubmit);
+                    const success = await this.sendAction("choose-cards", cardsToSubmit);
                     this._isSubmitting = false;
-                    this.selectedCardIds = [];
+                    if (success) {
+                        this.selectedCardIds = [];
+                    } else {
+                        this.log("Card submission failed. Selection retained. Please try again.");
+                    }
                     this.updateUI();
                 });
             }, '20px');
@@ -1119,7 +1135,7 @@
 
             const creditLabel = panel.CreateLabel(undefined, rootEl);
             await creditLabel.Async();
-            creditLabel.text = "Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nOriginally Ported to Banter by Shane\nSDK Port by FireRat\nCard Data & Logic by Chris Hallberg\nv0.8.7.5";
+            creditLabel.text = "Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nOriginally Ported to Banter by Shane\nSDK Port by FireRat\nCard Data & Logic by Chris Hallberg\nv0.8.8";
             creditLabel.SetStyles({ color: '#aaaaaa', fontSize: '25px', marginTop: '20px', textAlign: 'center' });
             this.ui.creditLabel = creditLabel;
 
