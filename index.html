@@ -1,9 +1,105 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
   <head>
+    <!-- WEB PAGE HEAD START -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#00ff44">
+    <title>Holograms Against Humanity | Altspace &amp; Banter Game | FireR.at</title>
+    <meta name="description" content="Synced multiplayer party card game table. Add it to an AltspaceVR (altvr.app) world or a Banter space.">
     <meta property="og:title" content="Holograms Against Humanity">
-    <meta property="og:description" content="Holograms Against Humanity, for Altspace and Banter.">
+    <meta property="og:description" content="Holograms Against Humanity by FireRat, for Altspace and Banter.">
+    <meta property="og:url" content="https://hah.firer.at/">
+    <meta property="og:image" content="https://firer.at/files/FireRat-Logo-V2.png">
+    <link rel="canonical" href="https://hah.firer.at/">
+    <link rel="icon" href="https://firer.at/files/favicon.ico" type="image/x-icon">
+    <script>
+      // In Altspace or Banter this page is the space itself, so the web page part is hidden.
+      (function () {
+        var hide = function () { document.documentElement.classList.add('in-space'); };
+        if (window.isBanter || window.BS) hide();
+        window.addEventListener('bs-loaded', hide);
+      })();
+    </script>
+    <link rel="stylesheet" href="https://firer.at/pages/nstyle.css">
+    <script src="https://firer.at/scripts/RandomBG.js"></script>
+    <style>
+      .in-space .fire-page, .in-space body::before, .in-space body::after { display: none !important; }
+      .fire-page #guide ul, .fire-page .info-block ul, .fire-page .info-block ol { color: var(--text-secondary); margin: 0 0 1.25rem 1.4rem; }
+      .fire-page li { margin-bottom: 0.4rem; }
+      .fire-page .info-block { margin-bottom: 3rem; }
+      .fire-page pre.diagram { cursor: default; }
+      .fire-page pre.diagram::before { content: none; }
+      .fire-page footer { text-align: center; }
+    </style>
+    <!-- WEB PAGE HEAD END -->
   </head>
   <body>
+<!-- WEB PAGE START: shown in a normal browser, hidden in Altspace and Banter -->
+<div class="fire-page">
+  <div class="ambient-glow-2"></div>
+  <div class="container">
+    <header>
+      <span class="eyebrow">Altspace &amp; Banter game</span>
+      <h1><span class="text-gradient">Holograms Against Humanity</span></h1>
+      <p>A terrible game for terrible people: a synced multiplayer Cards Against Humanity clone for up to 10 players. Everything runs in the browser, so it needs only static hosting. Made for <strong>SideQuest / AltspaceVR</strong> worlds, and it also works in <strong>Banter</strong>.</p>
+<p>There is no server: players stay in sync through the space's shared state, and the game is plain static files served from <a href="https://hah.firer.at">hah.firer.at</a>.</p>
+    </header>
+
+    <nav>
+      <a href="https://firer.at/games.html" class="buttonG buttonss buttonActive">&larr; All games</a>
+      <a href="https://firer.at/" class="buttonss buttonMain">FireR.at</a>
+      <a href="https://github.com/FireRat666/HaH" class="buttonW buttonss" target="_blank">GitHub</a>
+      <a href="https://ko-fi.com/FireRat666" class="buttonGY buttonss" target="_blank">Ko-fi</a>
+    </nav>
+
+    <main>
+      <section id="guide">
+        <h2>Add it to an Altspace world</h2>
+                <ul>
+          <li><strong>On the website:</strong> edit your world on <a href="https://altvr.app" target="_blank">altvr.app</a>, open <strong>Snippets</strong> on the left, choose <strong>All</strong>, then pick <strong>Holograms Against Humanity</strong>.</li>
+          <li><strong>In Unity:</strong> add an empty GameObject, click <strong>Add Component &gt; BS &gt; Snippet</strong> and type <code>hah</code>.</li>
+        </ul>
+
+        <h2>Add it with a script tag</h2>
+        <p>Paste this into a Banter space's HTML, or into an Altspace world's <code>Assets/WebRoot/index.html</code> (outside the snippet section). Give each copy its own <code>instance</code> to have more than one game in a space.</p>
+        <div class="code-header">Script tag</div>
+        <pre><code>&lt;script src=&quot;https://hah.firer.at/hah.js&quot; position=&quot;0 -0.4 -5&quot; instance=&quot;my-private-game&quot;&gt;&lt;/script&gt;</code></pre>
+        <p>All the settings are listed on <a href="https://github.com/FireRat666/HaH#settings" target="_blank">GitHub</a>.</p>
+      </section>
+
+      <section class="info-block">
+        <h2>Features</h2>
+        <ul><li>More than 70 official and unofficial packs, chosen by the host in game</li><li>Players can rejoin a game in progress and keep their seat</li></ul>
+      </section>
+
+      <section class="info-block">
+        <h2>How to play</h2>
+        <p>The game starts with the CAH Base Set. The host (or anyone who claims host in an empty room) can change it:</p>
+<ol><li>Click <strong>DECK OPTIONS</strong> on the centre hub.</li><li>Click packs to turn them on or off (green is on).</li><li>Click <strong>SAVE DECKS</strong>.</li><li>Click <strong>START ROUND</strong>.</li></ol>
+      </section>
+    </main>
+
+    <footer>
+      <p>Synced multiplayer party card game table. Open <a href="https://hah.firer.at">hah.firer.at</a> as a space in Altspace or Banter to try it.</p>
+      <p>&copy; <span class="fire-year"></span> <a href="https://firer.at/">FireR.at</a></p>
+    </footer>
+  </div>
+  <script>
+    document.querySelectorAll('.fire-year').forEach(el => { el.textContent = new Date().getFullYear(); });
+    document.querySelectorAll('.fire-page pre:not(.diagram)').forEach(pre => {
+      pre.addEventListener('click', async () => {
+        const header = pre.previousElementSibling;
+        try {
+          await navigator.clipboard.writeText(pre.innerText);
+          if (header) { const t = header.textContent; header.textContent = 'Copied!'; setTimeout(() => { header.textContent = t; }, 2000); }
+        } catch (e) { console.error('Copy failed', e); }
+      });
+    });
+  </script>
+</div>
+<!-- WEB PAGE END -->
       <script src="/hah.js" 
               rotation="0 0 0" debug="true" position="0 -0.4 2" instance="example1"></script>
       <script>
