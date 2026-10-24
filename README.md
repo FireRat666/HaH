@@ -1,43 +1,19 @@
 # Holograms Against Humanity
-==========================
 
-A terrible game for terrible people, now in your favorite virtual worlds. This is a clone of Cards Against Humanity designed to be easily embedded in social VR platforms like BanterVR.
+A terrible game for terrible people: a synced multiplayer Cards Against Humanity clone for up to 10 players. Everything runs in the browser, so it needs only static hosting. Made for **SideQuest / AltspaceVR** worlds, and it also works in **Banter**.
 
-**Important Architectural Change**: This version of Holograms Against Humanity is now entirely client-side. It no longer relies on a Node.js server, WebSockets, or A-Frame. All game logic and synchronization are handled directly within the `hah.js` script using Banter Space state properties, making it suitable for static hosting. It reads deck and audio data from external files.
+There is no server: players stay in sync through the space's shared state, and the game is plain static files served from <https://hah.firer.at>.
 
-* Adapted for AltspaceVR by: Derogatory, falkrons, schmidtec
-* Ported to Banter by Shane, Improved and ported from Glitch by FireRat
-* Card Data & Logic: ([JSON Against Humanity](https://github.com/FireRat666/Json-Against-Humanity))
+To try it, open <https://hah.firer.at> in Altspace or Banter.
 
 ## Features
 
-*   **Multiplayer Fun**: Play with up to 10 players, with game state synchronized via Banter Space properties.
-*   **Player Reconnect**: Disconnected players can rejoin a game in progress.
-*   **Host-Selectable Expansions**: The Host can dynamically choose which card expansions to include from a built-in library of over 70 official and unofficial packs directly from the in-game "DECK OPTIONS" UI.
-*   **Easy Integration**: Embed the game into any web-based world with a single script tag, requiring only static hosting.
+- More than 70 official and unofficial packs, chosen by the host in game
+- Players can rejoin a game in progress and keep their seat
 
-## Customization
+## Add it to an Altspace world (snippet)
 
-You can customize the game by adding attributes to the `<script>` tag that loads `hah.js`. This is especially useful when embedding the game in platforms like BanterVR.
-
-Here's an example of how you might use it:
-
-```html
-<script src="https://hah.firer.at/hah.js"
-        position="0 -0.4 -5"
-        instance="my-private-game"></script>
-```
-
-### Available Attributes
-
-*   `position`: (Default: `"0 0 0"`) Sets the `x y z` position of the game table in the world.
-*   `rotation`: (Default: `"0 0 0"`) Sets the `x y z` rotation of the game table.
-*   `instance`: (Default: `"demo-game"`) A unique name for the game room. All players with the same instance name will join the same game.
-*   `debug`: (Default: `"false"`) Set to `"true"` to enable extra logging in the browser's developer console.
-
-## SideQuest / Altspace Creator SDK (Snippet)
-
-In a SideQuest/Altspace Creator SDK world, add an empty GameObject at the origin, click **Add Component > BS > Snippet** and type `hah`. Or paste it into `Assets/WebRoot/index.html` between the snippet section comments:
+In a Creator SDK world, add an empty GameObject at the origin, click **Add Component > BS > Snippet** and type `hah`. Or paste this into `Assets/WebRoot/index.html`, between the snippet section comments:
 
 ```html
 <!-- snippet section -->
@@ -54,18 +30,61 @@ In a SideQuest/Altspace Creator SDK world, add an empty GameObject at the origin
 <!-- end snippet section -->
 ```
 
-- Settings are the same as the script attributes above. `position` and `rotation` are Unity world values.
 - Each placement is its own game. Its sync id is `room`, or the placement's own id when `room` is empty. Give placements the same `room` to share one game.
-- An empty setting uses the game's default.
+- `position` and `rotation` are Unity world values. The other settings are listed under [Settings](#settings). An empty setting uses the default.
 - The Scene-view gizmo shows the table footprint.
 - Unity reads the snippet section as XML: quote every attribute, close every element, and write `&` as `&amp;`.
 
-## Game Setup & Deck Selection
+## Add it with a script tag
 
-When the game initializes, it defaults to using the **CAH Base Set**. 
+This works in an Altspace world's `Assets/WebRoot/index.html` (outside the snippet section) and in a Banter space's HTML:
 
-If you are the Host (or if you claim Host in an empty room), you can configure the game before starting:
-1. Click the **DECK OPTIONS** button on the central hub.
-2. Scroll through the available expansions and click to toggle them on or off (green means selected).
-3. Click **SAVE DECKS** to commit your choices.
-4. Click **START ROUND** to begin the game!
+```html
+<script src="https://hah.firer.at/hah.js" position="0 -0.4 -5" instance="my-private-game"></script>
+```
+
+For more than one table in a space, give each one its own `instance`:
+
+```html
+<script src="https://hah.firer.at/hah.js" instance="table1" position="-4 0 0"></script>
+<script src="https://hah.firer.at/hah.js" instance="table2" position="4 0 0"></script>
+```
+
+## Settings
+
+| Setting | Also accepted | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `instance` |  | `hah_game` | Sync id. Tables with the same id share one game. In a snippet, use `room` instead. |
+| `position` |  | `0 0 0` | Table position (x y z). |
+| `rotation` |  | `0 0 0` | Table rotation in degrees (x y z). |
+| `debug` |  | `false` | `true` logs extra detail to the console. |
+
+## How to play
+
+The game starts with the CAH Base Set. The host (or anyone who claims host in an empty room) can change it:
+
+1. Click **DECK OPTIONS** on the centre hub.
+2. Click packs to turn them on or off (green is on).
+3. Click **SAVE DECKS**.
+4. Click **START ROUND**.
+
+## Files
+
+- `hah.js`: the game.
+- `decks/cah-all-compact.json`: the cards.
+- `Assets/`: sounds and models.
+- `formatter.html`: a tool for building deck files.
+- `snippet.js`, `snippet.html`: the Creator SDK snippet and its definition.
+- `index.html`: a test page with a floor and the game.
+
+## Credits
+
+- Adapted for AltspaceVR by Derogatory, falkrons, schmidtec
+- Ported to Banter by Shane; improved and ported from Glitch by FireRat
+- Card data: [JSON Against Humanity](https://github.com/FireRat666/Json-Against-Humanity)
+
+See [ATTRIBUTION.txt](ATTRIBUTION.txt).
+
+## License
+
+CC BY-NC-SA 4.0. See [LICENSE](LICENSE).
