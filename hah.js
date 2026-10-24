@@ -21,7 +21,7 @@
             pack.white = pack.white.map((index) =>
                 Object.assign(
                 {},
-                { text: json.white[index] },
+                { text: json.white[index], _id: `w${index}` },
                 { pack: packs.length },
                 pack.icon ? { icon: pack.icon } : {}
                 )
@@ -30,6 +30,7 @@
                 Object.assign(
                 {},
                 typeof json.black[index] === 'string' ? { text: json.black[index] } : json.black[index],
+                { _id: `b${index}`, numResponses: (typeof json.black[index] === 'object' && json.black[index].pick) || 1 },
                 { pack: packs.length },
                 pack.icon ? { icon: pack.icon } : {}
                 )
@@ -43,6 +44,11 @@
             if (typeof this.compactSrc != "undefined") {
             let json = await fetch(this.compactSrc).then((data) => data.json());
             this.deck = this._hydrateCompact(json);
+            this.cardsById = new Map();
+            for (const pack of this.deck) {
+                for (const card of pack.white) this.cardsById.set(card._id, card);
+                for (const card of pack.black) this.cardsById.set(card._id, card);
+            }
             } else if (typeof this.fullSrc != "undefined") {
             this.deck = await fetch(this.fullSrc).then((data) => data.json());
             } else {
@@ -91,6 +97,10 @@
             return packs;
         }
 
+        card(id) {
+            return (this.cardsById && this.cardsById.get(id)) || { _id: id, text: "?", numResponses: 1 };
+        }
+
         getPack(index) {
             return this.deck[index];
         }
@@ -110,6 +120,42 @@
             return { white, black };
         }
     }
+
+    // Space state values are capped (16 KB in the SideQuest/Altspace SDK), so the shared state never
+    // holds card text: cards are stored as their ids ("w123" / "b45") and looked up in the deck every
+    // client has loaded. The draw piles aren't stored either, only a shuffle seed and how far into it
+    // we are (see drawWhiteCard).
+    const CARD_ID = /^[wb]\d+$/;
+    const packCards = (value) => {
+        if (Array.isArray(value)) return value.map(packCards);
+        if (value && typeof value === 'object') {
+            if (typeof value._id === 'string' && CARD_ID.test(value._id)) return value._id;
+            const out = {};
+            for (const k in value) out[k] = packCards(value[k]);
+            return out;
+        }
+        return value;
+    };
+    const OLD_PILES = ['whiteDeck', 'blackDeck', 'whiteDiscard', 'blackDiscard'];
+
+    // Seeded shuffle, so every client derives the same draw order from the same seed.
+    const shuffled = (items, seed) => {
+        const out = items.slice();
+        let s = seed >>> 0;
+        const rand = () => {
+            s = (s + 0x6D2B79F5) >>> 0;
+            let t = s;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+        for (let i = out.length - 1; i > 0; i--) {
+            const j = Math.floor(rand() * (i + 1));
+            [out[i], out[j]] = [out[j], out[i]];
+        }
+        return out;
+    };
+    const newSeed = () => Math.floor(Math.random() * 4294967296);
 
     class BullshcriptGame {
         constructor() {
@@ -274,7 +320,7 @@
             const raw = scene.spaceState.public[this.stateKey]; // Changed STATE_KEY to this.stateKey
             let newState;
             try {
-                newState = raw ? JSON.parse(raw) : null;
+                newState = raw ? this.unpackState(raw) : null;
             } catch (err) {
                 this.log("Error parsing state:", err);
                 return;
@@ -320,10 +366,8 @@
                 currentBlackCard: null,
                 currentPreviewResponse: 0,
                 showBlack: false,
-                blackDeck: [],
-                whiteDeck: [],
-                blackDiscard: [],
-                whiteDiscard: [],
+                whiteDraw: null, // { seed, pos, packs }
+                blackDraw: null,
                 isStarted: false,
                 winner: null,
                 round: 0,
@@ -332,6 +376,34 @@
                 lastSound: null, // Add lastSound to default state
                 selectedPacks: []
             };
+        }
+
+        // State as stored in the space: card ids, no draw piles.
+        packState(state) {
+            const out = packCards(state);
+            for (const k of OLD_PILES) delete out[k];
+            const json = JSON.stringify(out);
+            if (json.length > 15000) this.log(`Warning: game state is ${json.length} bytes, close to the space's 16 KB limit.`);
+            return json;
+        }
+
+        // State as used here: full card objects.
+        unpackState(raw) {
+            const state = JSON.parse(raw);
+            if (!state) return state;
+            const card = (c) => (typeof c === 'string' && CARD_ID.test(c) ? this.cahDeck.card(c) : c);
+            const cards = (list) => (Array.isArray(list) ? list.map(card) : list);
+            for (const p of Object.values(state.players || {})) {
+                p.cards = cards(p.cards);
+                p.selected = cards(p.selected);
+            }
+            if (state.winner) {
+                state.winner.cards = cards(state.winner.cards);
+                state.winner.selected = cards(state.winner.selected);
+            }
+            state.currentBlackCard = card(state.currentBlackCard);
+            for (const k of OLD_PILES) delete state[k];
+            return state;
         }
 
         async updateState(patch) {
@@ -344,7 +416,7 @@
                 delete this.gameState._triggerSound;
             }
             
-            await scene.SetPublicSpaceProps({ [this.stateKey]: JSON.stringify(this.gameState) });
+            await scene.SetPublicSpaceProps({ [this.stateKey]: this.packState(this.gameState) });
             // Do NOT call sync() here, it will overwrite our local changes with stale space data
             // until the network update actually propagates back to us.
             this.updateUI();
@@ -360,13 +432,13 @@
                 const raw = scene.spaceState.public[this.stateKey];
                 let state;
                 try {
-                    state = raw ? JSON.parse(raw) : this.getDefaultState();
+                    state = raw ? this.unpackState(raw) : this.getDefaultState();
                 } catch (err) {
                     state = this.getDefaultState();
                 }
 
                 // Check if our action is already there (e.g. from a successful previous attempt that we thought failed)
-                if (state.lastAction && state.lastAction.userId === localUid && state.lastAction.action === action && JSON.stringify(state.lastAction.data) === JSON.stringify(data)) {
+                if (state.lastAction && state.lastAction.userId === localUid && state.lastAction.action === action && JSON.stringify(packCards(state.lastAction.data)) === JSON.stringify(packCards(data))) {
                     // Action already reflected, no need to retry
                     this.sync();
                     return true;
@@ -383,7 +455,7 @@
                 const actionId = Math.random().toString(36).substring(7);
                 updated.lastAction = { action, userId: localUid, data, timestamp: Date.now(), id: actionId };
 
-                await scene.SetPublicSpaceProps({ [this.stateKey]: JSON.stringify(updated) });
+                await scene.SetPublicSpaceProps({ [this.stateKey]: this.packState(updated) });
                 
                 // Short delay to let the space settle, then verify if our change persisted
                 await new Promise(r => setTimeout(r, 200));
@@ -570,7 +642,6 @@
                 
                 // Refill Hand
                 if (p.wantsNewHand) {
-                    if (p.cards) state.whiteDiscard.push(...p.cards.filter(Boolean));
                     p.cards = [];
                     p.wantsNewHand = false;
                 }
@@ -597,44 +668,54 @@
             return state;
         }
 
-        drawWhiteCard(state) {
-            if (state.whiteDeck.length === 0) {
-                if (state.whiteDiscard.length === 0) {
-                    // Reshuffle from master for current packs
-                    const selectedIds = state.selectedPacks && state.selectedPacks.length > 0 ? state.selectedPacks : this.defaultSelectedPacks;
-                    const combined = this.cahDeck.getPacks(selectedIds);
-                    let cardIdCounter = 0;
-                    state.whiteDeck = combined.white.map(card => ({ 
-                        ...card, 
-                        _id: `w_${cardIdCounter++}` 
-                    })).sort(() => Math.random() - 0.5);
-                } else {
-                    state.whiteDeck = [...state.whiteDiscard].sort(() => Math.random() - 0.5);
-                    state.whiteDiscard = [];
-                }
+        // Draws the next card from the seeded order of the selected packs. When the order runs out
+        // (or the packs change) it reshuffles with a new seed. Cards in someone's hand, submitted, or
+        // on the table are skipped, so nobody holds a duplicate.
+        drawCard(state, color) {
+            const key = color === 'white' ? 'whiteDraw' : 'blackDraw';
+            const selected = state.selectedPacks && state.selectedPacks.length > 0 ? state.selectedPacks : this.defaultSelectedPacks;
+            const packs = [...selected].sort((a, b) => a - b).join(',');
+            const pool = this.cahDeck.getPacks(selected)[color].map(c => c._id);
+            if (pool.length === 0) return null;
+
+            let draw = state[key];
+            if (!draw || draw.packs !== packs) draw = state[key] = { seed: newSeed(), pos: 0, packs };
+
+            const inUse = new Set();
+            for (const p of Object.values(state.players || {})) {
+                for (const c of [...(p.cards || []), ...(p.selected || [])]) if (c) inUse.add(c._id);
             }
-            return state.whiteDeck.pop();
+            if (state.currentBlackCard) inUse.add(state.currentBlackCard._id);
+
+            for (let tries = 0; tries < pool.length * 2; tries++) {
+                if (draw.pos >= pool.length) {
+                    draw.seed = newSeed();
+                    draw.pos = 0;
+                }
+                const order = this._drawOrder(color, pool, draw.seed);
+                const id = order[draw.pos++];
+                if (!inUse.has(id)) return this.cahDeck.card(id);
+            }
+            return null; // every card is in use
+        }
+
+        // The shuffled order is cached per colour, as it only changes with the seed or packs.
+        _drawOrder(color, pool, seed) {
+            if (!this._orders) this._orders = {};
+            const cacheKey = `${seed}:${pool.length}:${pool[0]}`;
+            const cached = this._orders[color];
+            if (cached && cached.key === cacheKey) return cached.order;
+            const order = shuffled(pool, seed);
+            this._orders[color] = { key: cacheKey, order };
+            return order;
+        }
+
+        drawWhiteCard(state) {
+            return this.drawCard(state, 'white');
         }
 
         drawBlackCard(state) {
-            if (state.blackDeck.length === 0) {
-                if (state.blackDiscard.length === 0) {
-                    const selectedIds = state.selectedPacks && state.selectedPacks.length > 0 ? state.selectedPacks : this.defaultSelectedPacks;
-                    const combined = this.cahDeck.getPacks(selectedIds);
-                    let cardIdCounter = 0;
-                    state.blackDeck = combined.black.map(card => ({ 
-                        ...(typeof card === 'string' ? { text: card } : card), 
-                        _id: `b_${cardIdCounter++}`,
-                        numResponses: card.pick || card.numResponses || 1 
-                    })).sort(() => Math.random() - 0.5);
-                } else {
-                    state.blackDeck = [...state.blackDiscard].sort(() => Math.random() - 0.5);
-                    state.blackDiscard = [];
-                }
-            }
-            const card = state.blackDeck.pop();
-            if (card) state.blackDiscard.push(card);
-            return card;
+            return this.drawCard(state, 'black');
         }
 
         applyGameLogic(state, action, userId, userName, data) {
@@ -708,8 +789,6 @@
                 case "leave-game":
                     if (players[userId]) {
                         const p = players[userId];
-                        if (p.cards) state.whiteDiscard.push(...p.cards.filter(Boolean));
-                        if (p.selected) state.whiteDiscard.push(...p.selected.filter(Boolean));
                         
                         // Save position in leftPlayers
                         if (!state.leftPlayers) state.leftPlayers = {};

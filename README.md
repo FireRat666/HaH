@@ -35,6 +35,31 @@ Here's an example of how you might use it:
 *   `instance`: (Default: `"demo-game"`) A unique name for the game room. All players with the same instance name will join the same game.
 *   `debug`: (Default: `"false"`) Set to `"true"` to enable extra logging in the browser's developer console.
 
+## SideQuest / Altspace Creator SDK (Snippet)
+
+In a SideQuest/Altspace Creator SDK world, add an empty GameObject at the origin, click **Add Component > BS > Snippet** and type `hah`. Or paste it into `Assets/WebRoot/index.html` between the snippet section comments:
+
+```html
+<!-- snippet section -->
+<bs-snippet name="hah" title="Holograms Against Humanity"
+  description="Synced multiplayer party card game table."
+  script="https://hah.firer.at/snippet.js"
+  room=""
+  position="0 0 3"
+  rotation="0 0 0"
+  debug="false">
+  <bs-gizmo type="position" attribute="position"/>
+  <bs-gizmo type="plane" attribute="position" size="3.2 3.2" rotation="90 0 0"/>
+</bs-snippet>
+<!-- end snippet section -->
+```
+
+- Settings are the same as the script attributes above. `position` and `rotation` are Unity world values.
+- Each placement is its own game. Its sync id is `room`, or the placement's own id when `room` is empty. Give placements the same `room` to share one game.
+- An empty setting uses the game's default.
+- The Scene-view gizmo shows the table footprint.
+- Unity reads the snippet section as XML: quote every attribute, close every element, and write `&` as `&amp;`.
+
 ## Game Setup & Deck Selection
 
 When the game initializes, it defaults to using the **CAH Base Set**. 
