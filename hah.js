@@ -171,6 +171,8 @@
             this.confirmCallback = null;
             this._openHandConfirmSlice = null; // player slice whose hand panel shows the confirm box
             this._localHandSlice = null; // local player's slice while their hand panel is visible (null for Czar etc.)
+            this._pendingSubmission = null; // { roundKey, cards, lastTry } for this player's submit this round
+            this._retryingSubmission = false;
             this.isMuted = false;
             this.playersInitiallyLoaded = {}; // Track initial connected state for sound suppression
             this.joinTime = Date.now();
@@ -487,10 +489,53 @@
             return this.gameState.currentHostUid === scene.localUser.uid;
         }
 
+        // Identifies the current round, so a submission is never re-sent into a later round.
+        roundKey(state) {
+            return `${state?.round || 0}:${state?.currentBlackCard?._id || ''}`;
+        }
+
+        // Returns the local player's pending submission if it still belongs to this round and
+        // hasn't shown up in the shared state yet. Clears it once it can no longer apply.
+        getPendingSubmission() {
+            const pending = this._pendingSubmission;
+            if (!pending || !this.gameState || !scene?.localUser) return null;
+            const state = this.gameState;
+            const uid = scene.localUser.uid;
+            const me = state.players?.[uid];
+            const cardsInHand = me && pending.cards.every(c => (me.cards || []).some(h => h && h._id === c._id));
+            if (!me || !state.isStarted || state.winner || state.czar === uid ||
+                this.roundKey(state) !== pending.roundKey || (!(me.selected && me.selected.length) && !cardsInHand)) {
+                this._pendingSubmission = null;
+                return null;
+            }
+            if (me.selected && me.selected.length) return null; // landed; keep it in case a later write drops it
+            return pending;
+        }
+
+        // Every player writes the whole game state, so two people submitting at the same moment can
+        // overwrite each other, and sendAction can report success before the other write arrives.
+        // This re-sends our submission while the shared state still shows us without one.
+        async retryPendingSubmission() {
+            if (this._isSubmitting || this._retryingSubmission) return;
+            const pending = this.getPendingSubmission();
+            if (!pending || Date.now() - pending.lastTry < 2500) return;
+            pending.lastTry = Date.now();
+            this._retryingSubmission = true;
+            try {
+                this.log("Submitted cards missing from game state, re-sending...");
+                await this.sendAction("choose-cards", pending.cards);
+            } finally {
+                this._retryingSubmission = false;
+                this.updateUI();
+            }
+        }
+
         async tick() {
             if (!this.gameState || !scene?.localUser) return;
             const now = Date.now();
             const localUid = scene.localUser.uid;
+
+            this.retryPendingSubmission();
 
             if (this.isHost()) {
                 // Protect against stomping: If a player recently performed an action, 
@@ -1096,6 +1141,9 @@
 
                 // Shown on this player's own hand panel, not the central screen
                 this.confirm("Submit these cards?", async () => {
+                    // Remember the submission until the round ends, so it can be re-sent if
+                    // another player's write overwrites it (see retryPendingSubmission).
+                    this._pendingSubmission = { roundKey: this.roundKey(this.gameState), cards: cardsToSubmit, lastTry: Date.now() };
                     this._isSubmitting = true;
                     this.updateUI();
                     const success = await this.sendAction("choose-cards", cardsToSubmit);
@@ -1973,7 +2021,9 @@
 
                 if (isLocalUser) {
                     const hasCards = playerAtPos.cards && playerAtPos.cards.length > 0;
-                    const showHand = this.gameState.isStarted && !sliceIsCzar && !this.gameState.winner && hasCards && (!playerAtPos.selected || !playerAtPos.selected.length);
+                    // A submission still being re-sent counts as submitted, so the hand doesn't pop back up.
+                    const pendingSubmit = !!this.getPendingSubmission();
+                    const showHand = this.gameState.isStarted && !sliceIsCzar && !this.gameState.winner && hasCards && (!playerAtPos.selected || !playerAtPos.selected.length) && !pendingSubmit;
                     
                     // Scale the hand GameObject based on showHand status
                     slice.handObj.transform.localScale = showHand ? new BS.Vector3(0.08, 0.08, 0.08) : new BS.Vector3(0, 0, 0);
@@ -2017,7 +2067,7 @@
                     } else {
                         if (this._openHandConfirmSlice === slice) this.closeConfirm();
                         slice.hRoot.SetStyles({ display: 'none' });
-                        slice.statusText.text = sliceIsCzar ? "CZAR" : (playerAtPos.selected && playerAtPos.selected.length ? "READY" : "WAITING");
+                        slice.statusText.text = sliceIsCzar ? "CZAR" : (playerAtPos.selected && playerAtPos.selected.length ? "READY" : (pendingSubmit ? "SUBMITTING..." : "WAITING"));
                     }
                 } else {
                     // For non-local users, always scale down the hand GameObject
