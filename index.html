@@ -7,14 +7,41 @@
     <meta name="color-scheme" content="dark">
     <meta name="theme-color" content="#00ff44">
     <meta name="sidequest-space-verification" content="7b5f81fd-3226-40ca-ac34-fdedbef57a68">
-    <title>Holograms Against Humanity | Altspace &amp; Banter Game | FireR.at</title>
-    <meta name="description" content="Synced multiplayer party card game table. Add it to an AltspaceVR (altvr.app) world or a Banter space.">
-    <meta property="og:title" content="Holograms Against Humanity">
-    <meta property="og:description" content="Holograms Against Humanity by FireRat, for Altspace and Banter.">
+    <title>Holograms Against Humanity (HAH) | Cards Against Humanity for AltspaceVR &amp; BanterVR | FireR.at</title>
+    <meta name="description" content="Embed Holograms Against Humanity, a synced 3D multiplayer Cards Against Humanity party game table for up to 10 players with 70+ card decks, into your AltspaceVR (altvr.app) world or BanterVR space.">
+    <meta name="keywords" content="Holograms Against Humanity, HAH, Altspace Cards Against Humanity, AltspaceVR, Banter Cards Against Humanity, BanterVR, altvr.app, the new Altspace, JSON Against Humanity, CAH decks, Altspace snippet hah, FireRat">
+    <meta name="author" content="FireRat">
+    <meta name="robots" content="index, follow">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="FireR.at">
+    <meta property="og:title" content="Holograms Against Humanity | Cards Against Humanity for AltspaceVR &amp; BanterVR">
+    <meta property="og:description" content="Synced 3D multiplayer Cards Against Humanity table for up to 10 players and 70+ card packs in AltspaceVR (altvr.app) and BanterVR.">
     <meta property="og:url" content="https://hah.firer.at/">
     <meta property="og:image" content="https://cdn.sidequestvr.com/file/4763927/altspace-photo-20261027-212557-edf1.jpg">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Holograms Against Humanity | Cards Against Humanity for AltspaceVR &amp; BanterVR">
+    <meta name="twitter:description" content="Synced 3D multiplayer Cards Against Humanity table for up to 10 players and 70+ card packs in AltspaceVR (altvr.app) and BanterVR.">
+    <meta name="twitter:image" content="https://cdn.sidequestvr.com/file/4763927/altspace-photo-20261027-212557-edf1.jpg">
     <link rel="canonical" href="https://hah.firer.at/">
     <link rel="icon" href="https://firer.at/files/favicon.ico" type="image/x-icon">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "VideoGame",
+      "name": "Holograms Against Humanity",
+      "alternateName": ["HAH", "Altspace Cards Against Humanity", "Banter Cards Against Humanity"],
+      "url": "https://hah.firer.at/",
+      "image": "https://cdn.sidequestvr.com/file/4763927/altspace-photo-20261027-212557-edf1.jpg",
+      "gamePlatform": ["AltspaceVR", "BanterVR"],
+      "applicationCategory": "GameApplication",
+      "playMode": "MultiPlayer",
+      "numberOfPlayers": { "@type": "QuantitativeValue", "minValue": 3, "maxValue": 10 },
+      "description": "Serverless synced 3D multiplayer Cards Against Humanity table game for AltspaceVR (altvr.app) and BanterVR worlds with 70+ official and custom card packs powered by JSON Against Humanity.",
+      "author": { "@type": "Person", "name": "FireRat", "url": "https://firer.at/" },
+      "isBasedOn": { "@type": "Dataset", "name": "JSON Against Humanity", "url": "https://jah.firer.at/" },
+      "isPartOf": { "@type": "WebPage", "url": "https://firer.at/games.html" }
+    }
+    </script>
     <script>
       // In Altspace or Banter this page is the space itself, so the web page part is hidden.
       (function () {
@@ -44,13 +71,15 @@
     <header>
       <span class="eyebrow">Altspace &amp; Banter game</span>
       <h1><span class="text-gradient">Holograms Against Humanity</span></h1>
-      <p>A terrible game for terrible people: a synced multiplayer Cards Against Humanity clone for up to 10 players. Everything runs in the browser, so it needs only static hosting. Made for <strong>SideQuest / AltspaceVR</strong> worlds, and it also works in <strong>Banter</strong>.</p>
+      <p>A terrible game for terrible people: a synced multiplayer Cards Against Humanity clone for up to 10 players. Everything runs client-side in the space, so it needs only static hosting. Made for <strong>SideQuest / AltspaceVR</strong> worlds, and it also works in <strong>Banter</strong>.</p>
 <p>There is no server: players stay in sync through the space's shared state, and the game is plain static files served from <a href="https://hah.firer.at">hah.firer.at</a>.</p>
     </header>
 
     <nav>
       <a href="https://firer.at/games.html" class="buttonG buttonss buttonActive">&larr; All games</a>
       <a href="https://firer.at/" class="buttonss buttonMain">FireR.at</a>
+      <a href="https://jah.firer.at/" class="buttonG buttonss">CAH Card Database</a>
+      <a href="https://cah-api.firer.at/" class="buttonG buttonss">CAH REST API</a>
       <a href="https://github.com/FireRat666/HaH" class="buttonW buttonss" target="_blank">GitHub</a>
       <a href="https://ko-fi.com/FireRat666" class="buttonGY buttonss" target="_blank">Ko-fi</a>
     </nav>
@@ -72,7 +101,7 @@
 
       <section class="info-block">
         <h2>Features</h2>
-        <ul><li>More than 70 official and unofficial packs, chosen by the host in game</li><li>Players can rejoin a game in progress and keep their seat</li></ul>
+        <ul><li>More than 70 official and unofficial packs from the <a href="https://jah.firer.at/">JSON Against Humanity card database &amp; spreadsheet</a> (also available via the <a href="https://cah-api.firer.at/">CAH Serverless API</a>), chosen by the host in game</li><li>Players can rejoin a game in progress and keep their seat</li></ul>
       </section>
 
       <section class="info-block">
