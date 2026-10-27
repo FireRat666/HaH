@@ -104,7 +104,23 @@
       <script src="/hah.js" 
               rotation="0 0 0" debug="true" position="0 -0.4 2" instance="example1"></script>
       <script>
+        // A big sphere round the space with a sky picture on its inside.
+        // Called from createFloor, so it is made once, at the same time as the floor.
+        async function createSky() {
+            const sky = await new BS.GameObject({ name: "BanterSky" }).Async();
+            await sky.AddComponent(new BS.BanterSphere({ radius: 300 }));
+            await sky.AddComponent(new BS.BanterInvertedMesh()); // Faces inwards, so it shows from inside
+            await sky.AddComponent(new BS.BanterMaterial({
+                shaderName: "Unlit/Diffuse",
+                texture: "https://drop.firer.at/Assets/skybox-4k-zc.jpg",
+                color: new BS.Vector4(1, 1, 1, 1),
+                side: BS.MaterialSide.Front
+            }));
+            await sky.AddComponent(new BS.Transform());
+        }
+
         async function createFloor() {
+            createSky();
             const floor = await new BS.GameObject("BanterFloor").Async();
             const width = 30; const height = 0.1; const depth = 30;
 
