@@ -101,9 +101,18 @@
   </script>
 </div>
 <!-- WEB PAGE END -->
-      <script src="/hah.js" 
-              rotation="0 0 0" debug="true" position="0 -0.4 2" instance="example1"></script>
-      <script>
+        <!-- snippet section -->
+        <bs-snippet name="hah" title="Holograms Against Humanity"
+          description="Synced multiplayer party card game table."
+          script="https://hah.firer.at/snippet.js"
+          room=""
+          position="0 -0.4 3"
+          rotation="0 0 0"
+          debug="true">
+          <bs-gizmo type="position" attribute="position"/>
+          <bs-gizmo type="plane" attribute="position" size="3.2 3.2" rotation="90 0 0"/>
+        </bs-snippet>
+        <!-- end snippet section -->
         // A big sphere round the space with a sky picture on its inside.
         // Called from createFloor, so it is made once, at the same time as the floor.
         async function createSky() {
