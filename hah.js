@@ -169,6 +169,8 @@
             };
             this.isConfirmationDialogOpen = false;
             this.confirmCallback = null;
+            this._openHandConfirmSlice = null; // player slice whose hand panel shows the confirm box
+            this._localHandSlice = null; // local player's slice while their hand panel is visible (null for Czar etc.)
             this.isMuted = false;
             this.playersInitiallyLoaded = {}; // Track initial connected state for sound suppression
             this.joinTime = Date.now();
@@ -1092,6 +1094,7 @@
                     return card ? { _id: card._id, text: card.text } : null;
                 }).filter(Boolean);
 
+                // Shown on this player's own hand panel, not the central screen
                 this.confirm("Submit these cards?", async () => {
                     this._isSubmitting = true;
                     this.updateUI();
@@ -1103,7 +1106,7 @@
                         this.log("Card submission failed. Selection retained. Please try again.");
                     }
                     this.updateUI();
-                });
+                }, undefined, this.ui.slices[index]);
             }, '20px');
             const resetBtn = await createBtn(hPanel, actionsRow, "RESET", "#FF9800", () => {
                 this.selectedCardIds = [];
@@ -1112,7 +1115,7 @@
             const dumpBtn = await createBtn(hPanel, actionsRow, "DUMP HAND", "#F44336", () => {
                 this.confirm("Dump hand ?\nNext Round you will have new cards!", () => {
                     this.sendAction("dump-hand");
-                }, null);
+                }, null, this.ui.slices[index]);
             });
 
             const cardsGrid = hPanel.CreateVisualElement(hRoot);
@@ -1166,11 +1169,90 @@
                 cardUIs.push({ container: cardContainer, label: cardLabel });
             }
 
+            // 3. Hand Confirm box (local player's own submit confirmation).
+            // Shown in place of the actions row + card grid while open.
+            const handConfirmBox = hPanel.CreateVisualElement(hRoot);
+            await handConfirmBox.Async();
+            handConfirmBox.SetStyles({
+                display: 'none',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '100%',
+                paddingTop: '30px',
+                paddingBottom: '30px',
+                backgroundColor: 'rgba(10, 10, 10, 0.98)',
+                borderRadius: '20px'
+            });
+
+            const handConfirmMsg = hPanel.CreateLabel(undefined, handConfirmBox);
+            await handConfirmMsg.Async();
+            handConfirmMsg.SetStyles({ color: 'white', fontSize: '40px', marginBottom: '25px', fontWeight: 'bold' });
+
+            const handConfirmCardsRow = hPanel.CreateVisualElement(handConfirmBox);
+            await handConfirmCardsRow.Async();
+            handConfirmCardsRow.SetStyles({
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                alignItems: 'center',
+                width: '100%',
+                marginBottom: '30px',
+                backgroundColor: 'rgba(0,0,0,0)'
+            });
+
+            const handConfirmCardSlots = [];
+            for (let i = 0; i < MAX_SUPPORTED_RESPONSES; i++) {
+                const cardContainer = hPanel.CreateVisualElement(handConfirmCardsRow);
+                await cardContainer.Async();
+                cardContainer.SetStyles({
+                    display: 'none',
+                    width: '230px',
+                    height: '310px',
+                    backgroundColor: 'white',
+                    paddingTop: '18px',
+                    paddingBottom: '18px',
+                    paddingLeft: '18px',
+                    paddingRight: '18px',
+                    borderRadius: '15px',
+                    borderWidth: '4px',
+                    borderColor: '#4CAF50',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    marginRight: '20px'
+                });
+
+                const cardLabel = hPanel.CreateLabel(undefined, cardContainer);
+                await cardLabel.Async();
+                cardLabel.SetStyles({
+                    width: '100%',
+                    height: '100%',
+                    color: 'black',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    textAlign: 'upper-left'
+                });
+
+                handConfirmCardSlots.push({ container: cardContainer, label: cardLabel });
+            }
+
+            const handConfirmBtns = hPanel.CreateVisualElement(handConfirmBox);
+            await handConfirmBtns.Async();
+            handConfirmBtns.SetStyles({ display: 'flex', flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0)' });
+
+            await createBtn(hPanel, handConfirmBtns, "CANCEL", "#F44336", () => this.closeConfirm(), '30px');
+            await createBtn(hPanel, handConfirmBtns, "CONFIRM", "#4CAF50", () => {
+                const cb = this.confirmCallback;
+                this.closeConfirm();
+                if (cb) cb();
+            });
+
             return {
                 root: sliceRoot,
                 wedgeMat: matNormal,
                 statusObj, sRoot, nameText, statusText, timerText,
-                handObj, hRoot, actionsRow, submitBtn, resetBtn, dumpBtn, selectionLabel, cardsGrid, cardUIs
+                handObj, hRoot, actionsRow, submitBtn, resetBtn, dumpBtn, selectionLabel, cardsGrid, cardUIs,
+                handConfirm: { box: handConfirmBox, msg: handConfirmMsg, cardSlots: handConfirmCardSlots }
             };
         }
 
@@ -1243,7 +1325,7 @@
             this.ui.joinBtn = await createBtn(buttonsRow, "JOIN GAME", "#2196F3", () => this.sendAction("join-game"), '20px');
             this.ui.dealBtn = await createBtn(buttonsRow, "START ROUND", "#4CAF50", () => this.sendAction("start-game"), '20px');
             this.ui.deckOptionsBtn = await createBtn(buttonsRow, "DECK OPTIONS", "#FF9800", () => this.openDeckOptionsUI(), '20px');
-            this.ui.leaveBtn = await createBtn(buttonsRow, "LEAVE GAME", "#F44336", () => this.confirm("Leave game?", () => this.sendAction("leave-game"), null), '20px');
+            this.ui.leaveBtn = await createBtn(buttonsRow, "LEAVE GAME", "#F44336", () => this.confirm("Leave game?", () => this.sendAction("leave-game"), null, this._localHandSlice), '20px');
             this.ui.claimHostBtn = await createBtn(buttonsRow, "CLAIM HOST", "#9C27B0", () => this.sendAction("claim-host"), '20px');
             this.ui.muteBtn = await createBtn(buttonsRow, "🔊", "#607D8B", () => {
                 this.isMuted = !this.isMuted;
@@ -1468,14 +1550,11 @@
                 backgroundColor: 'rgba(0,0,0,0)'
             });
 
-            await createBtn(confirmBtns, "CANCEL", "#F44336", () => {
-                this.isConfirmationDialogOpen = false;
-                this.ui.confirmOverlay.SetStyles({ display: 'none' });
-            }, '30px'); // Added marginRight
+            await createBtn(confirmBtns, "CANCEL", "#F44336", () => this.closeConfirm(), '30px'); // Added marginRight
             await createBtn(confirmBtns, "CONFIRM", "#4CAF50", () => {
-                if (this.confirmCallback) this.confirmCallback();
-                this.isConfirmationDialogOpen = false;
-                this.ui.confirmOverlay.SetStyles({ display: 'none' });
+                const cb = this.confirmCallback;
+                this.closeConfirm();
+                if (cb) cb();
             });
 
             await this.buildDeckOptionsUI(panel, rootEl, createBtn);
@@ -1637,11 +1716,29 @@
             });
         }
 
-        confirm(message, callback, previewCards) { // Removed default null
-            this.ui.confirmMsg.text = message;
+        // Opens a confirm dialog. By default it shows on the central screen (used by the Czar,
+        // and by Leave Game when the player has no hand panel up). Pass a player slice as
+        // `slice` to show it on that player's own hand panel instead (Submit, Dump Hand, and
+        // Leave Game while the hand is visible).
+        confirm(message, callback, previewCards, slice = null) { // Removed default null
+            this.closeConfirm();
             this.confirmCallback = callback;
             this.isConfirmationDialogOpen = true;
-            this.ui.confirmOverlay.SetStyles({ display: 'flex', backgroundColor: 'rgba(10, 10, 10, 0.98)' });
+
+            let msgLabel, cardSlots;
+            if (slice && slice.handConfirm) {
+                this._openHandConfirmSlice = slice;
+                msgLabel = slice.handConfirm.msg;
+                cardSlots = slice.handConfirm.cardSlots;
+                slice.actionsRow.SetStyles({ display: 'none' });
+                slice.cardsGrid.SetStyles({ display: 'none' });
+                slice.handConfirm.box.SetStyles({ display: 'flex' });
+            } else {
+                msgLabel = this.ui.confirmMsg;
+                cardSlots = this.ui.confirmCardSlots;
+                this.ui.confirmOverlay.SetStyles({ display: 'flex', backgroundColor: 'rgba(10, 10, 10, 0.98)' });
+            }
+            msgLabel.text = message;
 
             // Determine which cards to show in the preview slots
             let cardsToDisplay = [];
@@ -1655,7 +1752,7 @@
             }
 
             if (cardsToDisplay && cardsToDisplay.length > 0) {
-                this.ui.confirmCardSlots.forEach((slot, idx) => {
+                cardSlots.forEach((slot, idx) => {
                     if (idx < cardsToDisplay.length) {
                         slot.label.text = this.wrapText(cardsToDisplay[idx].text, 19);
                         slot.container.SetStyles({ display: 'flex' });
@@ -1664,7 +1761,21 @@
                     }
                 });
             } else {
-                this.ui.confirmCardSlots.forEach(slot => slot.container.SetStyles({ display: 'none' }));
+                cardSlots.forEach(slot => slot.container.SetStyles({ display: 'none' }));
+            }
+        }
+
+        // Hides whichever confirm dialog is open (central overlay or a hand panel's box).
+        closeConfirm() {
+            this.isConfirmationDialogOpen = false;
+            this.confirmCallback = null;
+            if (this.ui.confirmOverlay) this.ui.confirmOverlay.SetStyles({ display: 'none' });
+            const slice = this._openHandConfirmSlice;
+            if (slice) {
+                this._openHandConfirmSlice = null;
+                slice.handConfirm.box.SetStyles({ display: 'none' });
+                slice.actionsRow.SetStyles({ display: 'flex' });
+                slice.cardsGrid.SetStyles({ display: 'flex' });
             }
         }
 
@@ -1802,6 +1913,7 @@
             }
 
             // Update Slices
+            this._localHandSlice = null;
             for (let i = 0; i < MAX_PLAYERS; i++) {
                 const slice = this.ui.slices[i];
                 if (!slice) continue;
@@ -1813,6 +1925,7 @@
                     slice.timerText.text = "";
                     slice.sRoot.SetStyles({ display: 'none' });
                     // Scale down the hand GameObject entirely if no player is at this slice
+                    if (this._openHandConfirmSlice === slice) this.closeConfirm();
                     slice.handObj.transform.localScale = new BS.Vector3(0, 0, 0);
                     if (slice.wedgeMat) slice.wedgeMat.color = new BS.Vector4(0.15, 0.15, 0.15, 1);
                     continue;
@@ -1866,6 +1979,7 @@
                     slice.handObj.transform.localScale = showHand ? new BS.Vector3(0.08, 0.08, 0.08) : new BS.Vector3(0, 0, 0);
 
                     if (showHand) {
+                        this._localHandSlice = slice;
                         slice.hRoot.SetStyles({ display: 'flex' });
                         slice.statusText.text = "PICK CARDS";
                         
@@ -1901,11 +2015,13 @@
 
                         slice.dumpBtn.SetStyles({ display: !playerAtPos.hasRequestedHandDumpThisRound ? 'flex' : 'none' });
                     } else {
+                        if (this._openHandConfirmSlice === slice) this.closeConfirm();
                         slice.hRoot.SetStyles({ display: 'none' });
                         slice.statusText.text = sliceIsCzar ? "CZAR" : (playerAtPos.selected && playerAtPos.selected.length ? "READY" : "WAITING");
                     }
                 } else {
                     // For non-local users, always scale down the hand GameObject
+                    if (this._openHandConfirmSlice === slice) this.closeConfirm();
                     slice.handObj.transform.localScale = new BS.Vector3(0, 0, 0);
                     slice.hRoot.SetStyles({ display: 'none' });
                     slice.statusText.text = sliceIsCzar ? "CZAR" : (playerAtPos.selected && playerAtPos.selected.length ? "READY" : "THINKING");
