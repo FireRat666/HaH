@@ -10,6 +10,76 @@
     const IDLE_TIMEOUT_SECONDS = 90;
     const DISCONNECT_TIMEOUT_SECONDS = 45;
 
+    // --- Hearing distance ---
+    // Sounds fade with the local player's distance from the game: full volume within `near` metres,
+    // silent from `far` metres, so people elsewhere in the world aren't disturbed. The head position
+    // comes from an empty object attached to the player's head (Unity reports where it is), or from
+    // pose-update until that works. All the games on a page share one tracker.
+    function headTracker() {
+        if (window.BanterGamesHead) return window.BanterGamesHead;
+        const head = window.BanterGamesHead = { marker: null, attaching: false, markerPos: null, posePos: null };
+        const scene = BS.BanterScene.GetInstance();
+        scene.On('pose-update', e => {
+            const h = e && e.detail && e.detail.head;
+            if (h && h.position) head.posePos = h.position;
+        });
+        const attach = async () => {
+            const uid = scene.localUser && scene.localUser.uid;
+            if (!uid || head.marker || head.attaching) return;
+            head.attaching = true;
+            try {
+                const go = await new BS.GameObject("GameSoundsHead").Async();
+                head.marker = go;
+                if (typeof BS.AttachedObject === 'function') {
+                    const point = BS.AvatarBoneName ? BS.AvatarBoneName.HEAD : 0;
+                    const attached = await go.AddComponent(new BS.AttachedObject({ uid, avatarAttachmentPoint: point }));
+                    await attached.Attach(uid);
+                } else if (typeof scene.LegacyAttachObject === 'function' && BS.LegacyAttachmentPosition) {
+                    await scene.LegacyAttachObject(go, uid, BS.LegacyAttachmentPosition.HEAD);
+                } else {
+                    return; // no way to attach here: pose-update only
+                }
+                const PN = BS.PN || BS.PropertyName;
+                if (typeof go.WatchTransform === 'function' && PN) {
+                    await go.WatchTransform([PN.position], t => {
+                        if (head.marker === go && t && t.position) head.markerPos = t.position;
+                    });
+                }
+            } finally {
+                head.attaching = false;
+            }
+        };
+        const tryAttach = () => attach().catch(e => console.warn("Game sounds: could not follow the head", e));
+        // The SDK drops attachments when the player leaves, so the marker is made again when they
+        // come back (a moment later, so the SDK is ready).
+        scene.On('user-left', e => {
+            if (!(e && e.detail && e.detail.isLocal)) return;
+            try { if (head.marker) head.marker.Destroy(); } catch (err) { }
+            head.marker = null;
+            head.markerPos = null;
+        });
+        scene.On('user-joined', e => {
+            if (e && e.detail && e.detail.isLocal && !head.marker) setTimeout(tryAttach, 5000);
+        });
+        (async () => {
+            while (!scene.localUser || scene.localUser.uid === undefined) await new Promise(r => setTimeout(r, 500));
+            await tryAttach();
+        })();
+        return head;
+    }
+
+    // 0-1: how loud a sound from `centre` (a world position) is for the local player.
+    function distanceGain(centre, near, far) {
+        const head = headTracker();
+        const p = head.markerPos || head.posePos;
+        if (!p || !centre) return 1; // not known yet, so play it
+        const d = Math.hypot(p.x - centre.x, p.y - centre.y, p.z - centre.z);
+        if (d <= near) return 1;
+        if (!(far > near) || d >= far) return 0;
+        const f = 1 - (d - near) / (far - near);
+        return f * f;
+    }
+
     class CAHDeck {
         _hydrateCompact(json) {
             let packs = [];
@@ -187,10 +257,16 @@
 
             this.params = {
                 position: getParam("position", "0 0 0"),
+                volume: parseFloat(getParam("sound-volume", "0.4")), // 0-1; 0 = no sounds
+                soundNear: parseFloat(getParam("sound-near", "2.5")), // metres: full volume within this
+                soundFar: parseFloat(getParam("sound-far", "10")), // metres: silent from here
                 rotation: getParam("rotation", "0 0 0"),
                 instance: getParam("instance", "hah_game"),
                 debug: getParam("debug", "false") === "true"
             };
+            if (isNaN(this.params.volume)) this.params.volume = 0.4;
+            if (isNaN(this.params.soundNear)) this.params.soundNear = 2.5;
+            if (isNaN(this.params.soundFar)) this.params.soundFar = 10;
             this.stateKey = this.params.instance; // Changed STATE_KEY to this.stateKey
         }
 
@@ -237,15 +313,23 @@
         playLocalSound(soundFile) { // This will be called by sync
             if (this.isMuted || !soundFile) return;
 
-            // Map generic/extensionless sound names to actual files
-            let file = soundFile;
-            if (file === "leave") file = "playerKick.ogg";
-            if (file === "join") file = "playerJoin.ogg";
-            if (!file.includes(".")) file += ".ogg";
-
-            const audio = new Audio(`${DOMAIN}Assets/${file}`);
+            // The original recordings are in Assets/; the leave sound is in Assets/sfx/ (made by
+            // sound-tools/make_sounds.py).
+            const soundMap = {
+                "join": "playerJoin.ogg",
+                "leave": "sfx/leave.ogg",
+                "start": "gameStart.ogg",
+                "card": "card_flick.ogg",
+                "win": "fanfare with pop.ogg"
+            };
+            const file = soundMap[soundFile];
+            if (!file) return;
+            const audio = new Audio(`${DOMAIN}Assets/${encodeURI(file)}`);
             audio.crossOrigin = "anonymous";
-            audio.volume = 0.3;
+            // Quieter the further you are from the table (see distanceGain)
+            const volume = this.params.volume * distanceGain(this.parseVector3(this.params.position), this.params.soundNear, this.params.soundFar);
+            if (!(volume > 0.005)) return;
+            audio.volume = Math.min(1, volume);
             audio.play().catch(e => this.log("Sound play error:", e));
         }
 
@@ -266,6 +350,7 @@
             }
 
             await this.buildEnvironment();
+            headTracker(); // start following the head for sound distance
 
             // Listen for state changes
             scene.On("space-state-changed", this.onSpaceStateChanged.bind(this));
@@ -780,7 +865,7 @@
                     if (this.isHost() && (!state.isStarted || state.winner)) {
                         state.selectedPacks = data;
                         this.log("Packs updated:", data);
-                        this.triggerSound(state, "card_flick.ogg");
+                        this.triggerSound(state, "card");
                     }
                     break;
 
@@ -829,7 +914,7 @@
                             wantsNewHand: false,
                             hasRequestedHandDumpThisRound: false
                         };
-                        this.triggerSound(state, "playerJoin.ogg");
+                        this.triggerSound(state, "join");
                     }
                     break;
 
@@ -854,7 +939,7 @@
                         }
                         // Conditionally trigger sound
                         if (data.playSound !== false) { // playSound is passed in data from driveHostLogic
-                            this.triggerSound(state, "playerKick.ogg");
+                            this.triggerSound(state, "leave");
                         }
                     }
                     break;
@@ -862,7 +947,7 @@
                 case "start-game":
                     if (this.isHost() && (!state.isStarted || state.winner) && Object.keys(players).length >= 3) {
                         state = this.initializeNewRound(state);
-                        this.triggerSound(state, "gameStart.ogg");
+                        this.triggerSound(state, "start");
                     }
                     break;
 
@@ -890,7 +975,7 @@
                             }
                         }
 
-                        this.triggerSound(state, "card_flick.ogg");
+                        this.triggerSound(state, "card");
                     }
                     break;
 
@@ -912,7 +997,7 @@
                                     state.players[state.czar].inactivityKickTime = Date.now() + (IDLE_TIMEOUT_SECONDS * 1000);
                                 }
                             }
-                            this.triggerSound(state, "card_flick.ogg");
+                            this.triggerSound(state, "card");
                         }
                     }
                     break;
@@ -920,7 +1005,7 @@
                 case "preview-response":
                     if (state.czar === userId) {
                         state.currentPreviewResponse = data;
-                        this.triggerSound(state, "card_flick.ogg");
+                        this.triggerSound(state, "card");
                     }
                     break;
 
@@ -935,7 +1020,7 @@
                             // Czar acted, clear timer
                             if (player) player.inactivityKickTime = 0;
                         }
-                        this.triggerSound(state, "fanfare with pop.ogg");
+                        this.triggerSound(state, "win");
                     }
                     break;
 
@@ -943,7 +1028,7 @@
                     if (player && state.czar !== userId && !player.hasRequestedHandDumpThisRound) {
                         player.wantsNewHand = true;
                         player.hasRequestedHandDumpThisRound = true;
-                        this.triggerSound(state, "card_flick.ogg");
+                        this.triggerSound(state, "card");
                     }
                     break;
             }

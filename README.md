@@ -23,6 +23,9 @@ In a Creator SDK world, add an empty GameObject at the origin, click **Add Compo
   room=""
   position="0 0 3"
   rotation="0 0 0"
+  sound-volume="0.4"
+  sound-near="2.5"
+  sound-far="10"
   debug="false">
   <bs-gizmo type="position" attribute="position"/>
   <bs-gizmo type="plane" attribute="position" size="3.2 3.2" rotation="90 0 0"/>
@@ -55,6 +58,9 @@ For more than one table in a space, give each one its own `instance`:
 | Setting | Also accepted | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `instance` |  | `hah_game` | Sync id. Tables with the same id share one game. In a snippet, use `room` instead. |
+| `sound-volume` |  | `0.4` | Volume of the sound effects, from `0` to `1`, heard at full strength near the table. `0` turns them off. |
+| `sound-near` |  | `2.5` | Distance in metres from the table within which the sounds play at full volume. |
+| `sound-far` |  | `10` | Distance in metres at which the sounds have faded out completely, so people elsewhere in the world aren't disturbed. |
 | `position` |  | `0 0 0` | Table position (x y z). |
 | `rotation` |  | `0 0 0` | Table rotation in degrees (x y z). |
 | `debug` |  | `false` | `true` logs extra detail to the console. |
