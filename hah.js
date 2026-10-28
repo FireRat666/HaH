@@ -227,6 +227,81 @@
     };
     const newSeed = () => Math.floor(Math.random() * 4294967296);
 
+    // --- Deck picker layout ---
+    // Sections of the deck picker, in the order they are shown. Each lists the
+    // sheet names from the deck data that go in it; sheets not listed here land
+    // in an "Other" section at the end of their official / unofficial block.
+    const PACK_GROUPS = [
+        { title: 'Main Deck', official: true, sheets: ['CAH Main Deck'] },
+        { title: 'Box Expansions', official: true, sheets: ['CAH Expansions'] },
+        { title: 'Themed Packs', official: true, sheets: ['CAH Packs'] },
+        { title: 'Standalone Sets', official: true, sheets: ['CAH Bōks cards', 'CAH Card Lab', 'CAH Clams Aclamst Huclamity', 'CAH Explains the Joke', 'CAH Out of Line', 'CAH Twists: Shit List'] },
+        { title: 'Family Edition', official: true, sheets: ['CAH Family Edition'] },
+        { title: 'Limited Releases', official: true, sheets: ['CAH Limited Release'] },
+        { title: 'Bundles, Kits & Picture Packs', official: true, sheets: ['CAH A Few Extra', 'CAH Conversion Kits', 'CAH Image Packs'] },
+        { title: 'PAX Promo Cards', official: true, sheets: ['CAH PAX Cards'] },
+        { title: 'Discontinued Expansions', official: true, sheets: ['CAH Discontinued Expansions'] },
+        { title: 'Discontinued Packs', official: true, sheets: ['CAH Discontinued Packs'] },
+        { title: 'Standalone Games', official: false, sheets: ['Stand Alone Games'] },
+        { title: 'Third Party Commercial', official: false, sheets: ['Third Party Commercial'] },
+        { title: 'Fan Expansions', official: false, sheets: ['Fan Expansions'] },
+        { title: 'Etsy', official: false, sheets: ['Etsy'] },
+        { title: 'Special Purpose', official: false, sheets: ['Special Purpose'] },
+    ];
+    const MAIN_DECK_REGIONS = ['US', 'INTL', 'UK', 'CA', 'AU'];
+    const EXPANSION_ORDER = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Red', 'Blue', 'Green'];
+
+    // Short name for a pack button: the section header already says it is CAH
+    // and official, so the long "Cards Against Humanity: " prefix goes.
+    const packDisplayName = (name) => {
+        let n = name.replace(/^Cards Against Humanity:?\s+/, '').replace(/^CAH:\s+/, '');
+        n = n.replace(/^CAH Main Deck:\s+/, '');
+        if (n === 'Main Deck (All Versions)') return 'All Main Decks Combined';
+        // "Nerd Bundle: A Few More Cards For You Nerds (Target Exclusive)" -> "Nerd Bundle (Target Exclusive)"
+        const bundle = n.match(/^(.*?Bundle)\s*[:\-]\s*A Few[^(]*(\(.*\))?$/);
+        if (bundle) n = bundle[1] + (bundle[2] ? ' ' + bundle[2] : '');
+        n = n.replace(/\(Cards Against Humanity /, '(');
+        return n.replace(/\s+/g, ' ').trim();
+    };
+
+    // Order within a section: main decks by region then newest first, the old
+    // numbered expansions in release order, everything else alphabetically
+    // with numbers compared as numbers ("Pack 2" before "Pack 10").
+    const packSortKey = (pack) => {
+        const main = pack.name.match(/^CAH Main Deck: (\w+) v([\d.]+)/);
+        if (main) {
+            const region = MAIN_DECK_REGIONS.indexOf(main[1]);
+            return `0-${String(region < 0 ? 9 : region)}-${String(100 - parseFloat(main[2]) * 10).padStart(3, '0')}`;
+        }
+        if (/Main Deck \(All Versions\)/.test(pack.name)) return '1';
+        const exp = pack.name.match(/: (\w+) (Box )?Expansion$/);
+        if (exp && pack.sheetName === 'CAH Discontinued Expansions') {
+            return `0-${String(EXPANSION_ORDER.indexOf(exp[1])).padStart(2, '0')}`;
+        }
+        return '2-' + pack.displayName;
+    };
+
+    // Groups the deck's packs into picker sections. Empty packs are left out.
+    const groupPacks = (packs) => {
+        const sections = PACK_GROUPS.map(g => ({ ...g, packs: [] }));
+        const other = { true: { title: 'Other Official', official: true, sheets: [], packs: [] }, false: { title: 'Other', official: false, sheets: [], packs: [] } };
+        for (const pack of packs) {
+            if (!pack.counts || pack.counts.total === 0) continue;
+            pack.displayName = packDisplayName(pack.name);
+            const sheet = pack.sheetName || '';
+            const section = sections.find(s => s.official === !!pack.official && s.sheets.includes(sheet)) || other[!!pack.official];
+            section.packs.push(pack);
+        }
+        const ordered = [
+            ...sections.filter(s => s.official), other.true,
+            ...sections.filter(s => !s.official), other.false,
+        ].filter(s => s.packs.length > 0);
+        for (const s of ordered) {
+            s.packs.sort((a, b) => packSortKey(a).localeCompare(packSortKey(b), undefined, { numeric: true, sensitivity: 'base' }));
+        }
+        return ordered;
+    };
+
     class BullshcriptGame {
         constructor() {
             this.gameState = null;
@@ -366,24 +441,13 @@
             try {
                 this.log(`Loading decks from compact json...`);
                 this.cahDeck = await CAHDeck.fromCompact(`${DOMAIN}decks/cah-all-compact.json`);
-                this.availablePacks = this.cahDeck.listPacks().sort((a, b) => {
-                    // 1. Official status (official first)
-                    if (a.official !== b.official) {
-                        return a.official ? -1 : 1;
-                    }
-                    // 2. Sheet Name (alphabetical)
-                    const sheetA = a.sheetName || "Other";
-                    const sheetB = b.sheetName || "Other";
-                    if (sheetA !== sheetB) {
-                        return sheetA.localeCompare(sheetB);
-                    }
-                    // 3. Pack Name (alphabetical)
-                    return a.name.localeCompare(b.name);
-                });
-                
-                const basePack = this.availablePacks.find(p => p.name === 'CAH Base Set') || this.availablePacks[0];
+                this.packSections = groupPacks(this.cahDeck.listPacks());
+                this.availablePacks = this.packSections.flatMap(s => s.packs);
+
+                // Default to the newest US main deck (the first pack shown).
+                const basePack = this.availablePacks.find(p => p.name === 'CAH Main Deck: US v3.0') || this.availablePacks[0];
                 this.defaultSelectedPacks = [basePack.id];
-                
+
                 this.log("Deck loaded successfully.");
             } catch (err) {
                 this.log("Error loading deck:", err);
@@ -1467,7 +1531,7 @@
 
             const creditLabel = panel.CreateLabel(undefined, rootEl);
             await creditLabel.Async();
-            creditLabel.text = "Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nOriginally Ported to Banter by Shane\nSDK Port & Card Data by FireRat\nv0.8.9";
+            creditLabel.text = "Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nOriginally Ported to Banter by Shane\nSDK Port & Card Data by FireRat\nv0.9.0";
             creditLabel.SetStyles({ color: '#aaaaaa', fontSize: '25px', marginTop: '20px', textAlign: 'center' });
             this.ui.creditLabel = creditLabel;
 
@@ -1694,111 +1758,154 @@
         }
 
         async buildDeckOptionsUI(panel, rootEl, createBtn) {
+            const CLEAR = 'rgba(0,0,0,0)';
+            const GRID_WIDTH = '792px'; // three 250px buttons with 6px margins each side
+            const clearParent = (el) => {
+                if (el.parent && el.parent.SetStyles) {
+                    el.parent.SetStyles({ backgroundColor: CLEAR, backgroundImage: 'none' });
+                }
+            };
+
             this.ui.deckOptionsOverlay = panel.CreateVisualElement(rootEl);
             await this.ui.deckOptionsOverlay.Async();
             this.ui.deckOptionsOverlay.SetStyles({
                 display: 'none', position: 'absolute', top: '0', left: '0', width: '100%', height: '100%',
-                backgroundColor: 'rgba(10, 10, 10, 0.98)', flexDirection: 'column', alignItems: 'center',
-                paddingTop: '40px', zIndex: '90'
+                // Opaque: any transparency lets the main screen's text show through.
+                backgroundColor: '#0a0a0a', flexDirection: 'column', alignItems: 'center',
+                paddingTop: '30px', zIndex: '90'
             });
 
             const title = panel.CreateLabel(undefined, this.ui.deckOptionsOverlay);
             await title.Async();
             title.text = "SELECT DECKS";
-            title.SetStyles({ backgroundColor: 'rgba(0,0,0,0)', color: 'white', fontSize: '36px', marginBottom: '20px', fontWeight: 'bold' });
+            title.SetStyles({ backgroundColor: CLEAR, color: 'white', fontSize: '36px', marginBottom: '6px', fontWeight: 'bold' });
+
+            // "SCROLL FOR MORE" between two down chevrons. The UI font has no
+            // arrow glyphs, so each chevron is a box with two borders, turned 45 degrees.
+            const hintRow = panel.CreateVisualElement(this.ui.deckOptionsOverlay);
+            await hintRow.Async();
+            hintRow.SetStyles({ display: 'flex', flexDirection: 'row', alignItems: 'center', backgroundColor: CLEAR, marginBottom: '12px' });
+            const chevron = async () => {
+                const c = panel.CreateVisualElement(hintRow);
+                await c.Async();
+                c.SetStyles({
+                    width: '14px', height: '14px', backgroundColor: CLEAR, rotate: '45deg',
+                    borderRightWidth: '4px', borderBottomWidth: '4px', borderTopWidth: '0px', borderLeftWidth: '0px',
+                    borderColor: '#00FFFF', marginLeft: '14px', marginRight: '14px', marginBottom: '6px'
+                });
+            };
+            await chevron();
+            const hint = panel.CreateLabel(undefined, hintRow);
+            await hint.Async();
+            hint.text = "SCROLL DOWN FOR MORE  -  TAP A SECTION TO OPEN IT";
+            hint.SetStyles({ backgroundColor: CLEAR, color: '#00FFFF', fontSize: '22px', fontWeight: 'bold' });
+            await chevron();
 
             const scrollArea = panel.CreateScrollView(this.ui.deckOptionsOverlay);
             await scrollArea.Async();
             scrollArea.SetStyles({
-                width: '850px', height: '650px', backgroundColor: 'rgba(0,0,0,0.97)',
-                overflow: 'scroll', marginBottom: '20px'
+                width: '850px', height: '600px', backgroundColor: '#000000',
+                overflow: 'scroll', marginBottom: '8px'
             });
-
-            if (scrollArea.parent && scrollArea.parent.SetStyles) {
-                scrollArea.parent.SetStyles({ backgroundColor: 'rgba(0, 0, 0, 0)', backgroundImage: 'none' });
-            }
+            clearParent(scrollArea);
 
             const packsGrid = panel.CreateVisualElement(scrollArea);
             await packsGrid.Async();
             packsGrid.SetStyles({
-                display: 'flex', flexWrap: 'wrap', flexDirection: 'row', justifyContent: 'center',
-                width: '100%', backgroundColor: 'rgba(0,0,0,0)'
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                width: '100%', backgroundColor: CLEAR, paddingBottom: '20px'
             });
             this.ui.packsGrid = packsGrid;
 
             this.ui.packButtons = [];
+            this.ui.packSections = [];
 
-            if (!this.availablePacks) return;
+            this.ui.deckSummary = panel.CreateLabel(undefined, this.ui.deckOptionsOverlay);
+            await this.ui.deckSummary.Async();
+            this.ui.deckSummary.SetStyles({ backgroundColor: CLEAR, color: '#cccccc', fontSize: '22px', marginBottom: '4px' });
+
+            if (!this.packSections) return;
 
             let currentOfficial = null;
-            let currentSheet = null;
-
-            for (const pack of this.availablePacks) {
-                // 1. Category Header (Official / Unofficial)
-                if (pack.official !== currentOfficial) {
-                    currentOfficial = pack.official;
+            for (const section of this.packSections) {
+                // Official / unofficial block header
+                if (section.official !== currentOfficial) {
+                    currentOfficial = section.official;
                     const header = panel.CreateLabel(undefined, packsGrid);
                     await header.Async();
                     header.text = currentOfficial ? "OFFICIAL PACKS" : "UNOFFICIAL PACKS";
                     header.SetStyles({
                         display: 'flex', color: currentOfficial ? '#00FFFF' : '#FFD700',
-                        fontSize: '32px', fontWeight: 'bold', width: '100%',
-                        marginTop: '20px', marginBottom: '10px', marginLeft: '20px',
-                        textAlign: 'upper-left', backgroundColor: 'rgba(0,0,0,0)'
+                        fontSize: '32px', fontWeight: 'bold', width: GRID_WIDTH,
+                        marginTop: '20px', marginBottom: '0px',
+                        textAlign: 'upper-left', backgroundColor: CLEAR
                     });
-                    if (header.parent && header.parent.SetStyles) {
-                        header.parent.SetStyles({ backgroundColor: 'rgba(0,0,0,0)', backgroundImage: 'none', width: '100%' });
-                    }
-                    currentSheet = null;
+                    clearParent(header);
                 }
 
-                // 2. Sheet Header
-                const sheetName = pack.sheetName || "Other";
-                if (sheetName !== currentSheet) {
-                    currentSheet = sheetName;
-                    const header = panel.CreateLabel(undefined, packsGrid);
-                    await header.Async();
-                    header.text = `--- ${currentSheet.toUpperCase()} ---`;
-                    header.SetStyles({
-                        display: 'flex', color: 'rgba(221, 221, 221, 1)', fontSize: '22px', fontWeight: 'bold',
-                        width: '100%', marginTop: '15px', marginBottom: '8px', marginLeft: '25px',
-                        textAlign: 'upper-left', backgroundColor: 'rgba(0,0,0,0)'
-                    });
-                    if (header.parent && header.parent.SetStyles) {
-                        header.parent.SetStyles({ backgroundColor: 'rgba(0,0,0,0)', backgroundImage: 'none', width: '100%' });
-                    }
-                }
+                // Section header: a full-width button that opens and closes the
+                // section, so in VR you can jump between sections without long scrolls.
+                const header = panel.CreateButton(packsGrid);
+                await header.Async();
+                header.SetStyles({
+                    display: 'flex', color: '#dddddd', fontSize: '22px', fontWeight: 'bold',
+                    width: GRID_WIDTH, height: '48px', marginTop: '10px', marginBottom: '4px', paddingLeft: '10px',
+                    borderRadius: '8px', borderWidth: '0px', borderBottomWidth: '2px',
+                    borderColor: currentOfficial ? 'rgba(0, 255, 255, 0.45)' : 'rgba(255, 215, 0, 0.45)',
+                    textAlign: 'middle-left', backgroundColor: '#1b1b1b', backgroundImage: 'none'
+                });
+                clearParent(header);
 
-                // 3. Pack Button
-                const btn = panel.CreateButton(packsGrid);
-                await btn.Async();
-
-                let officialLabel = pack.official ? " (Official)" : " (Unofficial)";
-                btn.text = this.wrapText(pack.name + officialLabel, 22);
-
-                btn.SetStyles({
-                    display: 'flex', backgroundColor: 'rgba(30, 30, 30, 0.8)', color: 'white',
-                    width: '240px', height: '130px', marginTop: '6px', marginBottom: '6px', marginLeft: '6px', marginRight: '6px', borderRadius: '10px',
-                    fontSize: '18px', borderWidth: '4px', borderColor: '#aaaaaa'
+                // Left-aligned grid so short sections line up with the full ones
+                const grid = panel.CreateVisualElement(packsGrid);
+                await grid.Async();
+                grid.SetStyles({
+                    display: 'flex', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start',
+                    width: GRID_WIDTH, backgroundColor: CLEAR
                 });
 
-                if (btn.parent && btn.parent.SetStyles) {
-                    btn.parent.SetStyles({ backgroundColor: 'rgba(0,0,0,0)', backgroundImage: 'none' });
-                }
-
-                btn.OnClick(() => {
-                    const packId = pack.id;
-                    if (this.tempSelectedPacks.includes(packId)) {
-                        if (this.tempSelectedPacks.length > 1) {
-                            this.tempSelectedPacks = this.tempSelectedPacks.filter(id => id !== packId);
-                        }
-                    } else {
-                        this.tempSelectedPacks.push(packId);
-                    }
+                const sectionUI = { section, header, grid, open: false };
+                header.OnClick(() => {
+                    sectionUI.open = !sectionUI.open;
                     this.updateDeckOptionsUI();
                 });
+                this.ui.packSections.push(sectionUI);
 
-                this.ui.packButtons.push({ btn, pack });
+                for (const pack of section.packs) {
+                    const btn = panel.CreateButton(grid);
+                    await btn.Async();
+
+                    // Long names drop to a smaller font so they fit the same box.
+                    let name = this.wrapText(pack.displayName, 20);
+                    let fontSize = '19px';
+                    if (name.split('\n').length > 3) {
+                        name = this.wrapText(pack.displayName, 24);
+                        fontSize = '16px';
+                    }
+                    btn.text = `${name}\n${pack.counts.total} cards`;
+
+                    btn.SetStyles({
+                        display: 'flex', backgroundColor: '#1e1e1e', color: 'white',
+                        width: '250px', height: '112px', marginTop: '6px', marginBottom: '6px', marginLeft: '6px', marginRight: '6px',
+                        paddingLeft: '8px', paddingRight: '8px', borderRadius: '10px',
+                        fontSize, borderWidth: '2px', borderColor: '#aaaaaa'
+                    });
+                    clearParent(btn);
+
+                    btn.OnClick(() => {
+                        const packId = pack.id;
+                        if (this.tempSelectedPacks.includes(packId)) {
+                            if (this.tempSelectedPacks.length > 1) {
+                                this.tempSelectedPacks = this.tempSelectedPacks.filter(id => id !== packId);
+                            }
+                        } else {
+                            this.tempSelectedPacks.push(packId);
+                        }
+                        this.updateDeckOptionsUI();
+                    });
+
+                    this.ui.packButtons.push({ btn, pack });
+                }
             }
 
             const btnsRow = panel.CreateVisualElement(this.ui.deckOptionsOverlay);
@@ -1816,6 +1923,10 @@
 
         openDeckOptionsUI() {
             this.tempSelectedPacks = [...(this.gameState.selectedPacks && this.gameState.selectedPacks.length > 0 ? this.gameState.selectedPacks : this.defaultSelectedPacks)];
+            // Start with the main decks and any section holding a chosen pack open.
+            (this.ui.packSections || []).forEach((s, i) => {
+                s.open = i === 0 || s.section.packs.some(p => this.tempSelectedPacks.includes(p.id));
+            });
             this.updateDeckOptionsUI();
             this.ui.deckOptionsOverlay.SetStyles({ display: 'flex' });
             this._isDeckOptionsOpen = true;
@@ -1828,12 +1939,25 @@
 
         updateDeckOptionsUI() {
             if (!this.ui.packButtons) return;
-            
+
+            if (this.ui.deckSummary) {
+                const chosen = this.ui.packButtons.filter(({ pack }) => this.tempSelectedPacks.includes(pack.id));
+                const cards = chosen.reduce((sum, { pack }) => sum + pack.counts.total, 0);
+                this.ui.deckSummary.text = `${chosen.length} ${chosen.length === 1 ? 'pack' : 'packs'} selected  (${cards.toLocaleString('en-US')} cards)`;
+            }
+
+            (this.ui.packSections || []).forEach(({ section, header, grid, open }) => {
+                const picked = section.packs.filter(p => this.tempSelectedPacks.includes(p.id)).length;
+                header.text = `${open ? '-' : '+'}   ${section.title.toUpperCase()}  (${section.packs.length})${picked ? `     ${picked} selected` : ''}`;
+                header.SetStyles({ color: picked ? (section.official ? '#00FFFF' : '#FFD700') : '#dddddd' });
+                grid.SetStyles({ display: open ? 'flex' : 'none' });
+            });
+
             this.ui.packButtons.forEach(({ btn, pack }) => {
                 const isSelected = this.tempSelectedPacks.includes(pack.id);
 
                 let borderColor = isSelected ? '#ffffff' : '#aaaaaa';
-                let backgroundColor = isSelected ? 'rgba(76, 175, 80, 0.9)' : 'rgba(30, 30, 30, 0.8)';
+                let backgroundColor = isSelected ? '#43a047' : '#1e1e1e';
 
                 if (pack.official) {
                     borderColor = isSelected ? '#00FFFF' : '#008080';
