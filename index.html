@@ -152,6 +152,8 @@
             const sky = await new BS.GameObject({ name: "BanterSky" }).Async();
             await sky.AddComponent(new BS.BanterSphere({ radius: 300 }));
             await sky.AddComponent(new BS.BanterInvertedMesh()); // Faces inwards, so it shows from inside
+            // Uses the flipped sphere as a hollow shell, so the grapple can hit it from inside
+            await sky.AddComponent(new BS.MeshCollider({ convex: false, isTrigger: false }));
             await sky.AddComponent(new BS.BanterMaterial({
                 shaderName: "Unlit/Diffuse",
                 texture: "https://drop.firer.at/Assets/skybox-4k-zc.jpg",
@@ -162,6 +164,14 @@
         }
 
         async function createFloor() {
+            const scene = BS.Scene.GetInstance();
+            const settings = new BS.SceneSettings();
+            settings.EnableTeleport = true;
+            settings.EnableSpiderMan = true;
+            settings.SpawnPoint = new BS.Vector4(0, 1, -1, 90);
+            settings.PhysicsJumpStrength = 1.5;
+            await scene.SetSettings(settings);
+            
             createSky();
             const floor = await new BS.GameObject("BanterFloor").Async();
             const width = 30; const height = 0.1; const depth = 30;
