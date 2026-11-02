@@ -9,6 +9,7 @@
     // Removed: let STATE_KEY = "hah_game";
     const IDLE_TIMEOUT_SECONDS = 90;
     const DISCONNECT_TIMEOUT_SECONDS = 45;
+    const SUBMIT_GIVE_UP_MS = 12000; // after this, an unconfirmed card submission hands the cards back
 
     // --- Hearing distance ---
     // Sounds fade with the local player's distance from the game: full volume within `near` metres,
@@ -590,8 +591,16 @@
                     state = this.getDefaultState();
                 }
 
-                // Check if our action is already there (e.g. from a successful previous attempt that we thought failed)
-                if (state.lastAction && state.lastAction.userId === localUid && state.lastAction.action === action && JSON.stringify(packCards(state.lastAction.data)) === JSON.stringify(packCards(data))) {
+                // Check if our action is already there (e.g. from a successful previous attempt that we thought failed).
+                // For a card submission, trust the player's selected cards rather than lastAction: lastAction can
+                // match even though the cards never landed in our slot.
+                if (action === "choose-cards") {
+                    const me = state.players?.[localUid];
+                    if (me && me.selected && me.selected.length) {
+                        this.sync();
+                        return true;
+                    }
+                } else if (state.lastAction && state.lastAction.userId === localUid && state.lastAction.action === action && JSON.stringify(packCards(state.lastAction.data)) === JSON.stringify(packCards(data))) {
                     // Action already reflected, no need to retry
                     this.sync();
                     return true;
@@ -611,7 +620,8 @@
                 await scene.SetPublicSpaceProps({ [this.stateKey]: this.packState(updated) });
                 
                 // Short delay to let the space settle, then verify if our change persisted
-                await new Promise(r => setTimeout(r, 200));
+                // (400ms: round trips on Quest over Wi-Fi often take longer than 200ms)
+                await new Promise(r => setTimeout(r, 400));
                 const postRaw = scene.spaceState.public[this.stateKey];
                 
                 // If the current space state contains our unique action ID, we succeeded!
@@ -657,7 +667,19 @@
                 this._pendingSubmission = null;
                 return null;
             }
-            if (me.selected && me.selected.length) return null; // landed; keep it in case a later write drops it
+            if (me.selected && me.selected.length) {
+                // Landed; keep it in case a later write drops it, and time any re-send from now.
+                pending.startedAt = Date.now();
+                return null;
+            }
+            // Still not in the shared state after a while: give the hand back so the player can submit
+            // again, instead of sitting on "SUBMITTING..." until the inactivity kick.
+            if (!this._isSubmitting && Date.now() - pending.startedAt > SUBMIT_GIVE_UP_MS) {
+                this.log("Submission never reached the game state, returning hand to player.");
+                this._pendingSubmission = null;
+                this._submitFailed = pending.roundKey; // only shown during this round
+                return null;
+            }
             return pending;
         }
 
@@ -1044,9 +1066,24 @@
                     break;
 
                 case "choose-cards":
-                    if (player && !player.selected.length) {
+                    if (!player || state.czar === userId) {
+                        console.warn("[HAH Banter] choose-cards rejected: not a responding player.");
+                        return null;
+                    }
+                    if (!player.selected) player.selected = [];
+                    if (!player.selected.length) {
                         const numReq = state.currentBlackCard?.numResponses || 1;
-                        if (data.length === numReq) {
+                        const hand = player.cards || [];
+                        const ids = Array.isArray(data) ? data.map(c => c && c._id) : [];
+                        const valid = ids.length === numReq && new Set(ids).size === numReq &&
+                            ids.every(id => id && hand.some(h => h && h._id === id));
+                        // Reject instead of writing an unchanged state, so sendAction reports failure
+                        // rather than a lastAction that looks like the cards went in.
+                        if (!valid) {
+                            console.warn(`[HAH Banter] choose-cards rejected: need ${numReq} cards from hand, got`, ids);
+                            return null;
+                        }
+                        {
                             player.selected = data;
                             player.inactivityKickTime = 0;
                             
@@ -1284,23 +1321,40 @@
                 if (!localPlayer) return;
 
                 const cardsToSubmit = this.selectedCardIds.map(id => {
-                    const card = localPlayer.cards.find(c => c && c._id === id);
+                    const card = (localPlayer.cards || []).find(c => c && c._id === id);
                     return card ? { _id: card._id, text: card.text } : null;
                 }).filter(Boolean);
 
+                // A selected card that's no longer in the hand would make this submission invalid.
+                const numReq = this.gameState.currentBlackCard?.numResponses || 1;
+                if (cardsToSubmit.length !== numReq) {
+                    this.selectedCardIds = cardsToSubmit.map(c => c._id);
+                    this.updateUI();
+                    return;
+                }
+
                 // Shown on this player's own hand panel, not the central screen
                 this.confirm("Submit these cards?", async () => {
+                    if (this._isSubmitting) return;
                     // Remember the submission until the round ends, so it can be re-sent if
                     // another player's write overwrites it (see retryPendingSubmission).
-                    this._pendingSubmission = { roundKey: this.roundKey(this.gameState), cards: cardsToSubmit, lastTry: Date.now() };
+                    const now = Date.now();
+                    this._pendingSubmission = { roundKey: this.roundKey(this.gameState), cards: cardsToSubmit, lastTry: now, startedAt: now };
+                    this._submitFailed = false;
                     this._isSubmitting = true;
                     this.updateUI();
-                    const success = await this.sendAction("choose-cards", cardsToSubmit);
-                    this._isSubmitting = false;
+                    let success = false;
+                    try {
+                        success = await this.sendAction("choose-cards", cardsToSubmit);
+                    } catch (err) {
+                        console.warn("[HAH Banter] Card submission threw:", err);
+                    } finally {
+                        this._isSubmitting = false;
+                    }
                     if (success) {
                         this.selectedCardIds = [];
                     } else {
-                        this.log("Card submission failed. Selection retained. Please try again.");
+                        this.log("Card submission failed. Selection retained; will keep retrying.");
                     }
                     this.updateUI();
                 }, undefined, this.ui.slices[index]);
@@ -1531,7 +1585,7 @@
 
             const creditLabel = panel.CreateLabel(undefined, rootEl);
             await creditLabel.Async();
-            creditLabel.text = "Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nOriginally Ported to Banter by Shane\nSDK Port & Card Data by FireRat\nv0.9.0";
+            creditLabel.text = "Cards Against Humanity LLC\nLicensed under CC BY-NC-SA\ncardsagainsthumanity.com\nAdapted for AltspaceVR by:\nDerogatory, falkrons, schmidtec\nOriginally Ported to Banter by Shane\nSDK Port & Card Data by FireRat\nv0.9.1";
             creditLabel.SetStyles({ color: '#aaaaaa', fontSize: '25px', marginTop: '20px', textAlign: 'center' });
             this.ui.creditLabel = creditLabel;
 
@@ -2044,6 +2098,7 @@
             if (!this.gameState || this.isConfirmationDialogOpen) return;
             const localPlayer = this.gameState.players[scene.localUser.uid];
             if (!localPlayer || !localPlayer.cards) return;
+            this._submitFailed = false;
             const card = localPlayer.cards[index];
             if (!card) return;
             const numReq = this.gameState.currentBlackCard?.numResponses || 1;
@@ -2242,10 +2297,18 @@
                         slice.hRoot.SetStyles({ display: 'flex' });
                         slice.statusText.text = "PICK CARDS";
                         
+                        // Drop selections for cards no longer in the hand (new round, dumped hand)
+                        this.selectedCardIds = this.selectedCardIds.filter(id => playerAtPos.cards.some(c => c && c._id === id));
+
                         // Update selection counter
                         const numSelected = this.selectedCardIds.length;
-                        slice.selectionLabel.text = `${numSelected} / ${numReq} Selected`;
-                        slice.selectionLabel.SetStyles({ color: numSelected === numReq ? '#4CAF50' : 'white' });
+                        if (this._submitFailed && this._submitFailed === this.roundKey(this.gameState)) {
+                            slice.selectionLabel.text = "Didn't go through - submit again";
+                            slice.selectionLabel.SetStyles({ color: '#FF5252' });
+                        } else {
+                            slice.selectionLabel.text = `${numSelected} / ${numReq} Selected`;
+                            slice.selectionLabel.SetStyles({ color: numSelected === numReq ? '#4CAF50' : 'white' });
+                        }
 
                         playerAtPos.cards.forEach((card, idx) => {
                             const cardUI = slice.cardUIs[idx];
