@@ -10,6 +10,8 @@ To try it, open <https://hah.firer.at> in Altspace or Banter.
 
 - More than 70 official and unofficial packs, chosen by the host in game
 - Players can rejoin a game in progress and keep their seat
+- If the host leaves, another player takes over as host after a few seconds, so timers and turns keep going
+- Switches itself off when you are far from the table, and back on when you return
 
 ## Add it to an Altspace world (snippet)
 
@@ -23,6 +25,7 @@ In a Creator SDK world, add an empty GameObject at the origin, click **Add Compo
   room=""
   position="0 0 3"
   rotation="0 0 0"
+  cull-distance="20"
   sound-volume="0.4"
   sound-near="2.5"
   sound-far="10"
@@ -61,6 +64,7 @@ For more than one table in a space, give each one its own `instance`:
 | `sound-volume` |  | `0.4` | Volume of the sound effects, from `0` to `1`, heard at full strength near the table. `0` turns them off. |
 | `sound-near` |  | `2.5` | Distance in metres from the table within which the sounds play at full volume. |
 | `sound-far` |  | `10` | Distance in metres at which the sounds have faded out completely, so people elsewhere in the world aren't disturbed. |
+| `cull-distance` |  | `20` | Metres from the table beyond which the game switches itself off for you, so it costs nothing, and back on when you come within a metre less. The game keeps going meanwhile and is up to date when you return. `0` keeps it always on. |
 | `position` |  | `0 0 0` | Table position (x y z). |
 | `rotation` |  | `0 0 0` | Table rotation in degrees (x y z). |
 | `debug` |  | `false` | `true` logs extra detail to the console. |
