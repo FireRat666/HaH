@@ -82,42 +82,45 @@
     }
 
     // --- Switching off when far away ---
-    // Beyond `cull-distance` metres the whole game is deleted, so it costs nothing, and it is built
-    // again when the player comes back. (Switching it off with SetActive isn't enough: BanterUI panels
-    // lose their contents when switched off and on.) The game logic and the host duties keep running
-    // meanwhile; only the drawing stops. `resetUI` clears whatever pointed at the deleted objects.
-    function distanceSwitch(game, resetUI) {
+    // Beyond `cull-distance` metres the game is shrunk to nothing and stops updating its panels, and
+    // it grows back when the player returns. It isn't deleted and rebuilt: the app doesn't free
+    // everything a deleted UI panel used, so rebuilding leaked memory each time. (SetActive isn't
+    // used either: BanterUI panels lose their contents when switched off and on.) The game logic and
+    // the host duties keep running meanwhile.
+    function distanceSwitch(game) {
         const head = headTracker();
         const c = game.parseVector3(game.params.position);
         const centre = { x: c.x, y: c.y + 1, z: c.z }; // table height
-        let busy = false;
-        setInterval(async () => {
+        setInterval(() => {
             const far = game.params.cullDistance;
             const p = head.markerPos || head.posePos;
-            if (busy || !(far > 0) || !p) return;
+            if (!(far > 0) || !p || !game.root) return;
             const d = Math.hypot(p.x - centre.x, p.y - centre.y, p.z - centre.z);
-            busy = true;
             try {
                 if (!game.culled && d > far + 1) {
                     game.culled = true;
-                    const root = game.root;
-                    game.root = null;
-                    resetUI();
-                    if (root) root.Destroy();
+                    game.root.transform.localScale = new BS.Vector3(0, 0, 0);
                     game.log(`Switched off (${d.toFixed(1)} m away).`);
                 } else if (game.culled && d < far) {
-                    game.log(`Switching back on (${d.toFixed(1)} m away)...`);
-                    await game.buildEnvironment();
-                    if (game.ui.muteBtn) game.ui.muteBtn.text = game.isMuted ? "🔇" : "🔊";
                     game.culled = false;
+                    game.root.transform.localScale = new BS.Vector3(1, 1, 1);
+                    game.log(`Switched back on (${d.toFixed(1)} m away).`);
                     game.updateUI();
                 }
             } catch (err) {
                 console.warn("Distance switch failed", err);
-            } finally {
-                busy = false;
             }
         }, 1000);
+    }
+
+    // --- Times from other players ---
+    // Timestamps in the game state come from the clock of whoever wrote them, and players' clocks can
+    // be minutes or hours apart. So a stored timestamp is never compared with this device's clock:
+    // it's treated as a marker, and its age is counted from when this device first saw it.
+    const firstSeen = new Map();
+    function ageOf(ts) {
+        if (!firstSeen.has(ts)) firstSeen.set(ts, Date.now());
+        return Date.now() - firstSeen.get(ts);
     }
 
     // --- Host ---
@@ -503,15 +506,7 @@
 
             setInterval(() => this.tick(), 1000);
             this.readyTime = Date.now();
-            distanceSwitch(this, () => {
-                this.ui = { slices: [], centralPanel: null, czarResponseCards: [] };
-                this._deckAnimRunning = false;
-                this._openHandConfirmSlice = null;
-                this._localHandSlice = null;
-                this._isDeckOptionsOpen = false;
-                this.isConfirmationDialogOpen = false;
-                this.confirmCallback = null;
-            });
+            distanceSwitch(this);
         }
 
         async loadDeck() {
@@ -565,7 +560,7 @@
                 // Check for sound to play
                 const oldSound = this.gameState ? this.gameState.lastSound : null;
                 if (newState.lastSound && (!oldSound || newState.lastSound.ts !== oldSound.ts)) {
-                    if (newState.lastSound.ts > this.joinTime) {
+                    if (this.gameState) { // not sounds from before we arrived
                         this.playLocalSound(newState.lastSound.file);
                     }
                 }
@@ -784,7 +779,7 @@
                 // Protect against stomping: If a player recently performed an action, 
                 // wait for it to propagate before the Host logic runs and potentially overwrites it.
                 const lastAction = this.gameState.lastAction;
-                if (lastAction && lastAction.userId !== localUid && (now - lastAction.timestamp < 1500)) {
+                if (lastAction && lastAction.userId !== localUid && ageOf(lastAction.timestamp) < 1500) {
                     // Skip this tick to let player state settle
                     this.updateUI();
                     return;
@@ -829,8 +824,10 @@
                 rot.y = rotY;
                 rot.z = this._deckRotZ;
 
-                this.ui.deckObj.transform.localPosition = pos;
-                this.ui.deckObj.transform.localEulerAngles = rot;
+                if (!this.culled) { // nothing to move while the game is shrunk away
+                    this.ui.deckObj.transform.localPosition = pos;
+                    this.ui.deckObj.transform.localEulerAngles = rot;
+                }
 
                 requestAnimationFrame(loop);
             };
@@ -869,7 +866,7 @@
 
                 // Disconnect Kick
                 if (!isConnected && p.disconnectTime > 0) {
-                    if (now - p.disconnectTime > DISCONNECT_TIMEOUT_SECONDS * 1000) {
+                    if (ageOf(p.disconnectTime) > DISCONNECT_TIMEOUT_SECONDS * 1000) {
                         this.log(`Kicking ${p.name} for disconnect.`);
                         const wasInitiallyConnected = this.playersInitiallyLoaded.hasOwnProperty(uid) && this.playersInitiallyLoaded[uid];
                         this.applyGameLogic(this.gameState, "leave-game", uid, p.name, { playSound: wasInitiallyConnected });
@@ -879,7 +876,7 @@
 
                 // Inactivity Kick (Only if game started)
                 if (this.gameState.isStarted && p.inactivityKickTime > 0) {
-                    if (now > p.inactivityKickTime) {
+                    if (ageOf(p.inactivityKickTime) > IDLE_TIMEOUT_SECONDS * 1000) {
                         this.log(`Kicking ${p.name} for inactivity.`);
                         this.applyGameLogic(this.gameState, "leave-game", uid, p.name, { playSound: true });
                         changed = true;
@@ -889,7 +886,7 @@
 
             // 3. Auto-start next round after winner chosen
             if (this.gameState.winner && this.gameState.winnerTime) {
-                if (now - this.gameState.winnerTime > 5000) {
+                if (ageOf(this.gameState.winnerTime) > 5000) {
                     this.log("Auto-starting next round...");
                     this.applyGameLogic(this.gameState, "start-game", scene.localUser.uid, scene.localUser.name, {});
                     changed = true;
@@ -2321,18 +2318,17 @@
                 // Inactivity & Disconnect Timer Display
                 const kickTime = playerAtPos.inactivityKickTime || 0;
                 const discTime = playerAtPos.disconnectTime || 0; // Use disconnectTime from player object
-                const now = new Date().getTime();
                 
                 let timerStr = "";
                 let secondsLeft = Infinity;
                 let icon = "⏱️";
 
                 if (kickTime > 0) {
-                    secondsLeft = Math.max(0, Math.floor((kickTime - now) / 1000));
+                    secondsLeft = Math.max(0, Math.floor((IDLE_TIMEOUT_SECONDS * 1000 - ageOf(kickTime)) / 1000));
                 }
 
                 if (discTime > 0 && !playerAtPos.connected) { // Only show disconnect timer if actually disconnected
-                    const discSeconds = Math.max(0, Math.floor((discTime + (DISCONNECT_TIMEOUT_SECONDS * 1000) - now) / 1000));
+                    const discSeconds = Math.max(0, Math.floor((DISCONNECT_TIMEOUT_SECONDS * 1000 - ageOf(discTime)) / 1000));
                     if (discSeconds < secondsLeft) {
                         secondsLeft = discSeconds;
                         icon = "📡";
