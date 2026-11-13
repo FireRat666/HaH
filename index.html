@@ -140,17 +140,92 @@
 
     <main>
       <section id="guide">
-        <h2>Add it to an Altspace world</h2>
-                <ul>
-          <li><strong>On the website:</strong> edit your world on <a href="https://altvr.app" target="_blank">altvr.app</a>, open <strong>Snippets</strong> on the left, choose <strong>All</strong>, then pick <strong>Holograms Against Humanity</strong>.</li>
-          <li><strong>In Unity:</strong> add an empty GameObject, click <strong>Add Component &gt; BS &gt; Snippet</strong> and type <code>hah</code>.</li>
-        </ul>
+        <h2>1. Pick how you build your world</h2>
+        <p>Holograms Against Humanity is an Altspace <strong>snippet</strong>: a ready-made piece you drop into your world. Its name (the "slug") is always:</p>
+        <p><button type="button" class="copy-chip" data-copy="hah">hah <span class="copy-label">Copy</span></button></p>
+        <p>Type it exactly like that (<strong>all lowercase</strong>). Pick the way you build your world and follow that section below, or use a <a href="#script-tag">script tag</a> for Banter.</p>
 
-        <h2>Add it with a script tag</h2>
-        <p>Paste this into a Banter space's HTML, or into an Altspace world's <code>Assets/WebRoot/index.html</code> (outside the snippet section). Give each copy its own <code>instance</code> to have more than one game in a space.</p>
-        <div class="code-header">Script tag</div>
-        <pre><code>&lt;script src=&quot;https://hah.firer.at/hah.js&quot; position=&quot;0 -0.4 -5&quot; instance=&quot;my-private-game&quot;&gt;&lt;/script&gt;</code></pre>
-        <p>All the settings are listed on <a href="https://github.com/FireRat666/HaH#settings" target="_blank">GitHub</a>.</p>
+        <div class="choice-grid">
+          <div class="choice-card">
+            <div class="tech-badges"><span class="badge vr">Recommended</span></div>
+            <h3>I build my world in Unity</h3>
+            <p>You use the Altspace / Banter <strong>Creator SDK</strong> in Unity. You get the settings in the Inspector and can move the gizmos in the Scene view.</p>
+            <a href="#unity" class="buttonss btn-gradient">Go to the Unity steps</a>
+          </div>
+          <div class="choice-card">
+            <div class="tech-badges"><span class="badge json">No Unity needed</span></div>
+            <h3>I edit my world on the website</h3>
+            <p>You edit your world on <strong>altvr.app</strong> in your browser. You copy the snippet from the Snippets section (or below) and paste it into your world's HTML.</p>
+            <a href="#website" class="buttonss buttonG">Go to the website steps</a>
+          </div>
+        </div>
+
+        <div id="unity" class="guide-sub">
+          <h2>2a. Add it in Unity</h2>
+          <p>You need a Unity project with the Altspace / Banter <strong>Creator SDK</strong> already set up, and your world's scene open.</p>
+          <ol class="steps">
+            <li><strong>Make an empty object.</strong> In the top menu choose <span class="menu">GameObject &rsaquo; Create Empty</span>. Rename it to <code>Holograms Against Humanity</code> so you can find it later (the object's name doesn't matter, only the slug does).</li>
+            <li><strong>Put it at the middle of the world.</strong> With the new object selected, look at <strong>Transform</strong> in the Inspector and set <strong>Position</strong> to <code>0 0 0</code> and <strong>Rotation</strong> to <code>0 0 0</code>.
+              <span class="sub">Why: you don't move the game by moving this object. You move it with the snippet's own <code>position</code> and <code>rotation</code> settings (step 6). If the object (or anything it's inside) isn't at <code>0 0 0</code>, the SDK's gizmos won't line up with where it really appears.</span></li>
+            <li><strong>Add the Snippet component.</strong> Click <span class="menu">Add Component</span>, type <code>Snippet</code> in the search box, and pick <span class="menu">BS &rsaquo; Snippet</span>.</li>
+            <li><strong>Type the slug and press Enter.</strong> In the Snippet's <strong>Slug</strong> box type <button type="button" class="copy-chip" data-copy="hah">hah <span class="copy-label">Copy</span></button> and press <kbd>Enter</kbd> (the box only takes it after Enter or clicking somewhere else).
+              <span class="sub">It downloads the snippet and adds it to your world's <code>Assets/WebRoot/index.html</code> for you. After a moment the Inspector shows the title <strong>Holograms Against Humanity</strong> and a list of settings. If nothing happens, click <strong>Refresh from server</strong>.</span></li>
+            <li><strong>Save the scene.</strong> Press <kbd>Ctrl</kbd> + <kbd>S</kbd> (Windows / Linux) or <kbd>Cmd</kbd> + <kbd>S</kbd> (Mac).
+              <span class="sub">Do this every time you add or remove a snippet. Closing Unity without saving is the main way extra copies of the snippet end up in <code>index.html</code>.</span></li>
+            <li><strong>Place and configure it.</strong> Change the settings in the Inspector, or drag the gizmo handle in the Scene view to move it. All settings are listed on <a href="https://github.com/FireRat666/HaH#settings" target="_blank">GitHub</a>.</li>
+            <li><strong>Upload your world</strong> the same way you always do, then join it in Altspace to play.</li>
+          </ol>
+          <div class="callout info">
+            <p><strong>Multiple copies in one world:</strong> you can add more than one <strong>Holograms Against Humanity</strong> snippet. In Unity each placement automatically gets its own separate game state unless you set the same <code>room</code> name on both.</p>
+          </div>
+        </div>
+
+        <div id="website" class="guide-sub">
+          <h2>2b. Add it on the website</h2>
+          <ol class="steps">
+            <li><strong>Open your world for editing</strong> on <a href="https://altvr.app" target="_blank" rel="noopener">altvr.app</a> and go to the <strong>Snippets</strong> section.</li>
+            <li><strong>Find Holograms Against Humanity.</strong> Set the list to show <strong>All</strong> snippets, then search for <code>Holograms Against Humanity</code> (or scroll to it) and open it.</li>
+            <li><strong>Copy it.</strong> Click <strong>Copy &amp; open index.html</strong>. This copies the snippet's code and opens your world's HTML (or copy the full snippet code below).</li>
+            <li><strong>Paste it in the right place.</strong> If your HTML has these two lines, paste <em>between</em> them:
+<pre><code>&lt;!-- snippet section --&gt;
+   paste here
+&lt;!-- end snippet section --&gt;</code></pre>
+              <span class="sub">If it doesn't have them, paste it just before <code>&lt;/body&gt;</code>.</span></li>
+            <li><strong>Change the settings</strong> by editing the values in quotes in the pasted code, for example <code>position="0 0 3"</code>. If you paste more than one copy, give each one its own <code>room</code> (like <code>room="table-1"</code> and <code>room="table-2"</code>) so they stay separate.</li>
+            <li><strong>Save</strong>, then join your world to play.</li>
+          </ol>
+          <div class="callout warn">
+            <p><strong>Keep the code tidy.</strong> Every value needs quotes around it (<code>sound-volume="0.4"</code>, not <code>sound-volume=0.4</code>), and a <code>&amp;</code> in any link must be written as <code>&amp;amp;</code>. Unity reads this part strictly, and one mistake can break the whole snippet section.</p>
+          </div>
+
+          <h3>The full snippet code</h3>
+          <p>This is everything the snippet adds, with every setting at its default. Click the code to copy it.</p>
+          <div class="code-header">Full snippet code</div>
+          <pre><code>&lt;!-- snippet section --&gt;
+&lt;bs-snippet name="hah" title="Holograms Against Humanity"
+  description="Synced multiplayer party card game table."
+  script="https://hah.firer.at/snippet.js"
+  room=""
+  position="0 0 3"
+  rotation="0 0 0"
+  cull-distance="20"
+  sound-volume="0.4"
+  sound-near="2.5"
+  sound-far="10"
+  debug="false"&gt;
+  &lt;bs-gizmo type="position" attribute="position"/&gt;
+  &lt;bs-gizmo type="plane" attribute="position" size="3.2 3.2" rotation="90 0 0"/&gt;
+&lt;/bs-snippet&gt;
+&lt;!-- end snippet section --&gt;</code></pre>
+        </div>
+
+        <div id="script-tag" class="guide-sub">
+          <h2>2c. Banter (or manual): add it with a script tag</h2>
+          <p>Paste this into a Banter space's HTML, or into an Altspace world's <code>Assets/WebRoot/index.html</code> (outside the snippet section). Give each copy its own <code>instance</code> to have more than one game in a space.</p>
+          <div class="code-header">Script tag</div>
+          <pre><code>&lt;script src=&quot;https://hah.firer.at/hah.js&quot; position=&quot;0 -0.4 -5&quot; instance=&quot;my-private-game&quot;&gt;&lt;/script&gt;</code></pre>
+          <p>All the settings are listed on <a href="https://github.com/FireRat666/HaH#settings" target="_blank">GitHub</a>.</p>
+        </div>
       </section>
 
       <section class="info-block">
@@ -172,12 +247,23 @@
   </div>
   <script>
     document.querySelectorAll('.fire-year').forEach(el => { el.textContent = new Date().getFullYear(); });
+    document.querySelectorAll('.fire-page [data-copy]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const label = btn.querySelector('.copy-label');
+        try {
+          await navigator.clipboard.writeText(btn.dataset.copy);
+          if (label) { const old = label.textContent; label.textContent = 'Copied'; setTimeout(() => { label.textContent = old; }, 1500); }
+        } catch (e) {
+          if (label) { const old = label.textContent; label.textContent = 'Select it'; setTimeout(() => { label.textContent = old; }, 1500); }
+        }
+      });
+    });
     document.querySelectorAll('.fire-page pre:not(.diagram)').forEach(pre => {
       pre.addEventListener('click', async () => {
         const header = pre.previousElementSibling;
         try {
           await navigator.clipboard.writeText(pre.innerText);
-          if (header) { const t = header.textContent; header.textContent = 'Copied!'; setTimeout(() => { header.textContent = t; }, 2000); }
+          if (header && header.classList.contains('code-header')) { const t = header.textContent; header.textContent = 'Copied!'; setTimeout(() => { header.textContent = t; }, 2000); }
         } catch (e) { console.error('Copy failed', e); }
       });
     });
